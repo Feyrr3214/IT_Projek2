@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <color name="primary_purple">#9D4EDD</color> <!-- Tema Ungu Estetik -->
+    <color name="primary_purple_dark">#7B2CBF</color>
+    <color name="background_light">#F5F5FA</color>
+    <color name="surface_white">#FFFFFF</color>
+    <color name="text_dark">#1C1C1E</color>
+    <color name="text_gray">#8E8E93</color>
+    <color name="success_green">#34C759</color>
+    <color name="danger_red">#FF3B30</color>
+    <color name="warning_yellow">#FFCC00</color>
+    <color name="progress_track">#E5E5EA</color>
+    <color name="info_blue">#007AFF</color>
+    <color name="divider">#C6C6C8</color>
+</resources>

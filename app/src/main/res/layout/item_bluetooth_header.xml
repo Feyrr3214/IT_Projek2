@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="horizontal"
+    android:paddingStart="24dp"
+    android:paddingEnd="24dp"
+    android:paddingTop="20dp"
+    android:paddingBottom="8dp"
+    android:gravity="center_vertical">
+    
+    <TextView
+        android:id="@+id/tvHeaderTitle"
+        android:layout_width="0dp"
+        android:layout_height="wrap_content"
+        android:layout_weight="1"
+        android:text="PERANGKAT"
+        android:textSize="12sp"
+        android:textStyle="bold"
+        android:textColor="@color/text_gray" />
+        
+    <ProgressBar
+        android:id="@+id/pbScanning"
+        android:layout_width="16dp"
+        android:layout_height="16dp"
+        android:visibility="gone"
+        style="?android:attr/progressBarStyleSmall" />
+</LinearLayout>

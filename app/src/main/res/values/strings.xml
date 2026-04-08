@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Rumah Anggur Pelaihari</string>
+    <string name="nav_home">Beranda</string>
+    <string name="nav_history">Riwayat</string>
+    <string name="nav_settings">Pengaturan</string>
+    <string name="nav_profile">Profil</string>
+    <string name="hello_user">Halo, User</string>
+    <string name="app_title">Rumah Anggur Pelaihari</string>
+    <string name="moisture_title">Kelembaban Tanah</string>
+    <string name="auto_watering">Penyiraman Otomatis</string>
+    <string name="manual_water_btn">SIRAM MANUAL SEKARANG</string>
+    <string name="last_watering_title">Status Penyiraman Terakhir</string>
+</resources>

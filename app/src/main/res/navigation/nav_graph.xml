@@ -1,0 +1,104 @@
+<?xml version="1.0" encoding="utf-8"?>
+<navigation xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/nav_graph"
+    app:startDestination="@id/welcomeFragment">
+
+    <!-- ========== AUTH FLOW ========== -->
+
+    <fragment
+        android:id="@+id/welcomeFragment"
+        android:name="com.example.itprojek2.ui.auth.WelcomeFragment"
+        android:label="Selamat Datang">
+        <action
+            android:id="@+id/action_welcome_to_login"
+            app:destination="@id/loginFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/loginFragment"
+        android:name="com.example.itprojek2.ui.auth.LoginFragment"
+        android:label="Masuk">
+        <action
+            android:id="@+id/action_login_to_register"
+            app:destination="@id/registerFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+        <action
+            android:id="@+id/action_login_to_main"
+            app:destination="@id/mainTabFragment"
+            app:popUpTo="@id/welcomeFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/registerFragment"
+        android:name="com.example.itprojek2.ui.auth.RegisterFragment"
+        android:label="Daftar">
+        <action
+            android:id="@+id/action_register_to_login"
+            app:destination="@id/loginFragment"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_register_to_main"
+            app:destination="@id/mainTabFragment"
+            app:popUpTo="@id/welcomeFragment"
+            app:popUpToInclusive="true" />
+    </fragment>
+
+    <!-- ========== MAIN APP ========== -->
+
+    <fragment
+        android:id="@+id/mainTabFragment"
+        android:name="com.example.itprojek2.ui.MainTabFragment"
+        android:label="Aplikasi Smart Watering" />
+
+    <fragment
+        android:id="@+id/homeFragment"
+        android:name="com.example.itprojek2.ui.home.HomeFragment"
+        android:label="Beranda" />
+
+    <fragment
+        android:id="@+id/historyFragment"
+        android:name="com.example.itprojek2.ui.history.HistoryFragment"
+        android:label="Riwayat" />
+
+    <fragment
+        android:id="@+id/settingsFragment"
+        android:name="com.example.itprojek2.ui.settings.SettingsFragment"
+        android:label="Pengaturan">
+        <action
+            android:id="@+id/action_settings_to_deviceSetup"
+            app:destination="@id/deviceSetupFragment" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/deviceSetupFragment"
+        android:name="com.example.itprojek2.ui.settings.DeviceSetupFragment"
+        android:label="Pengaturan Perangkat" />
+
+    <fragment
+        android:id="@+id/profileFragment"
+        android:name="com.example.itprojek2.ui.profile.ProfileFragment"
+        android:label="Profil" />
+
+    <fragment
+        android:id="@+id/notificationFragment"
+        android:name="com.example.itprojek2.ui.notification.NotificationFragment"
+        android:label="Notifikasi" />
+
+    <fragment
+        android:id="@+id/editProfileFragment"
+        android:name="com.example.itprojek2.ui.profile.EditProfileFragment"
+        android:label="Edit Profil" />
+
+    <fragment
+        android:id="@+id/changePasswordFragment"
+        android:name="com.example.itprojek2.ui.profile.ChangePasswordFragment"
+        android:label="Ganti Password" />
+</navigation>

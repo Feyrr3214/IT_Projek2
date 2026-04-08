@@ -1,0 +1,64 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="120dp"
+    android:height="120dp"
+    android:viewportWidth="120"
+    android:viewportHeight="120">
+
+    <!-- Anggur Buah 1 (Kiri Atas) -->
+    <path
+        android:fillColor="#7B2CBF"
+        android:pathData="M38,55 A10,10,0,1,1,38,55.01Z" />
+    <path
+        android:fillColor="#9D4EDD"
+        android:pathData="M52,50 A10,10,0,1,1,52,50.01Z" />
+    <path
+        android:fillColor="#7B2CBF"
+        android:pathData="M45,63 A10,10,0,1,1,45,63.01Z" />
+
+    <!-- Anggur Buah 2 (Bawah) -->
+    <path
+        android:fillColor="#9D4EDD"
+        android:pathData="M60,58 A10,10,0,1,1,60,58.01Z" />
+    <path
+        android:fillColor="#7B2CBF"
+        android:pathData="M53,72 A10,10,0,1,1,53,72.01Z" />
+    <path
+        android:fillColor="#9D4EDD"
+        android:pathData="M67,68 A10,10,0,1,1,67,68.01Z" />
+    <path
+        android:fillColor="#7B2CBF"
+        android:pathData="M60,78 A9,9,0,1,1,60,78.01Z" />
+
+    <!-- Batang -->
+    <path
+        android:fillColor="#4A7C3F"
+        android:pathData="M52,30 L52,48"
+        android:strokeWidth="3"
+        android:strokeColor="#4A7C3F" />
+
+    <!-- Daun Kiri -->
+    <path
+        android:fillColor="#66BB6A"
+        android:pathData="M52,35 Q38,22 42,38 Q48,34 52,35Z" />
+
+    <!-- Daun Kanan -->
+    <path
+        android:fillColor="#43A047"
+        android:pathData="M52,32 Q66,20 64,36 Q58,32 52,32Z" />
+
+    <!-- WiFi Icon kecil di pojok kanan bawah -->
+    <path
+        android:fillColor="#34C759"
+        android:pathData="M78,85 A2,2,0,1,1,78,85.01Z" />
+    <path
+        android:strokeColor="#34C759"
+        android:strokeWidth="2"
+        android:pathData="M72,80 A9,9,0,0,1,84,80"
+        android:fillColor="#00000000" />
+    <path
+        android:strokeColor="#34C759"
+        android:strokeWidth="2"
+        android:pathData="M68,76 A15,15,0,0,1,88,76"
+        android:fillColor="#00000000" />
+</vector>

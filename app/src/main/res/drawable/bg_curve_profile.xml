@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="400dp"
+    android:height="350dp"
+    android:viewportWidth="100"
+    android:viewportHeight="100">
+    <!-- Gelombang Transparan (Belakang) -->
+    <path
+        android:fillColor="#409A8CEE"
+        android:pathData="M0,0 L100,0 L100,75 C75,50 50,105 0,70 Z" />
+    <!-- Gelombang Utama (Depan) -->
+    <path
+        android:fillColor="@color/primary_purple"
+        android:pathData="M0,0 L100,0 L100,60 C75,40 50,90 0,55 Z" />
+</vector>

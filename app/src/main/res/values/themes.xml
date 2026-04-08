@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <style name="Theme.ITProjek2" parent="Theme.MaterialComponents.Light.NoActionBar">
+        <item name="colorPrimary">@color/primary_purple</item>
+        <item name="colorPrimaryVariant">@color/primary_purple_dark</item>
+        <item name="colorOnPrimary">@color/surface_white</item>
+        <item name="colorSecondary">@color/success_green</item>
+        <item name="android:statusBarColor">@color/primary_purple</item>
+        <item name="android:windowBackground">@color/background_light</item>
+    </style>
+
+    <style name="CircleImageView" parent="">
+        <item name="cornerFamily">rounded</item>
+        <item name="cornerSize">50%</item>
+    </style>
+
+    <style name="CardStyle" parent="Widget.MaterialComponents.CardView">
+        <item name="cardCornerRadius">24dp</item>
+        <item name="cardElevation">1dp</item>
+        <item name="cardBackgroundColor">@color/surface_white</item>
+    </style>
+
+    <style name="ButtonPrimary" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/primary_purple</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="android:textColor">@color/surface_white</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="ButtonBlue" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/info_blue</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="android:textColor">@color/surface_white</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+
+    <style name="ButtonDanger" parent="Widget.MaterialComponents.Button">
+        <item name="backgroundTint">@color/danger_red</item>
+        <item name="cornerRadius">24dp</item>
+        <item name="android:textColor">@color/surface_white</item>
+        <item name="android:textStyle">bold</item>
+    </style>
+</resources>

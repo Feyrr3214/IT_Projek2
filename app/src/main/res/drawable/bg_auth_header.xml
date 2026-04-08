@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp"
+    android:height="300dp"
+    android:viewportWidth="360"
+    android:viewportHeight="300">
+
+    <!-- Layer 1: Ungu gelap (background) -->
+    <path
+        android:fillColor="#7B2CBF"
+        android:pathData="M0,0 L360,0 L360,300 L0,300 Z" />
+
+    <!-- Layer 2: Gelombang ungu terang -->
+    <path
+        android:fillColor="#9D4EDD"
+        android:pathData="M0,0 L360,0 L360,200 
+                          Q300,260 240,220 
+                          Q180,180 120,210 
+                          Q60,240 0,200 Z" />
+
+    <!-- Layer 3: Gelombang ungu medium -->
+    <path
+        android:fillColor="#8B3ECF"
+        android:pathData="M0,0 L360,0 L360,160 
+                          Q310,220 240,180 
+                          Q170,140 100,180 
+                          Q40,210 0,170 Z" />
+</vector>

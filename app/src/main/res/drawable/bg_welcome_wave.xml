@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="360dp"
+    android:height="380dp"
+    android:viewportWidth="360"
+    android:viewportHeight="380">
+
+    <!-- Gelombang ungu terang paling belakang -->
+    <path
+        android:fillColor="#9D4EDD"
+        android:pathData="M0,0 L360,0 L360,320
+                          Q300,380 220,340
+                          Q140,300 60,340
+                          Q20,360 0,340 Z" />
+
+    <!-- Gelombang ungu medium -->
+    <path
+        android:fillColor="#8B3ECF"
+        android:pathData="M0,0 L360,0 L360,280
+                          Q290,340 200,300
+                          Q120,260 50,300
+                          Q10,320 0,300 Z" />
+
+    <!-- Gelombang ungu gelap (utama) -->
+    <path
+        android:fillColor="#7B2CBF"
+        android:pathData="M0,0 L360,0 L360,240
+                          Q280,300 180,260
+                          Q100,230 40,270
+                          Q10,285 0,270 Z" />
+</vector>
