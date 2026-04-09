@@ -30,6 +30,7 @@
                 android:orientation="vertical">
 
                 <TextView
+                    android:id="@+id/tvHeaderName"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:text="Halo, User"
@@ -179,9 +180,8 @@
                             android:id="@+id/switchAutoWatering"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:checked="true"
-                            app:thumbTint="@color/surface_white"
-                            app:trackTint="@color/primary_purple" />
+                            android:checked="false"
+                            app:thumbTint="@color/surface_white" />
                     </LinearLayout>
 
                     <com.google.android.material.button.MaterialButton
@@ -191,6 +191,8 @@
                         android:layout_marginTop="16dp"
                         android:text="SIRAM MANUAL SEKARANG"
                         android:textStyle="bold"
+                        android:enabled="true"
+                        android:alpha="1.0"
                         android:drawableStart="@drawable/ic_water_drop"
                         android:drawablePadding="8dp"
                         style="@style/ButtonBlue" />
