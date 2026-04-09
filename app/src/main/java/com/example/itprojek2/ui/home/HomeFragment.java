@@ -45,6 +45,15 @@ public class HomeFragment extends Fragment {
         // Inisialisasi controller Firebase
         controller = new IrrigationController(DEVICE_ID);
 
+        // Inisialisasi awal UI sesuai state default di XML (Otomatis: OFF)
+        updateAutoWateringUI(false);
+
+        // Load nama user dari sesi
+        android.content.SharedPreferences prefs = requireActivity().getSharedPreferences("UserSession", android.content.Context.MODE_PRIVATE);
+        String name = prefs.getString("name", "User");
+        String firstName = name.contains(" ") ? name.substring(0, name.indexOf(" ")) : name;
+        binding.tvHeaderName.setText("Halo, " + firstName);
+
         // Gauge kelembaban — default sampai data Firebase masuk
         binding.moistureGaugeView.setMoisturePercent(0f);
 
@@ -130,6 +139,7 @@ public class HomeFragment extends Fragment {
                 public void onSuccess() {
                     if (!isAdded()) return;
                     requireActivity().runOnUiThread(() -> {
+                        updateAutoWateringUI(isChecked); // Update UI warna & tombol manual
                         String msg = isChecked
                                 ? "✓ Penyiraman otomatis diaktifkan"
                                 : "Penyiraman otomatis dinonaktifkan";
@@ -181,8 +191,13 @@ public class HomeFragment extends Fragment {
                 if (!isAdded() || binding == null) return;
 
                 requireActivity().runOnUiThread(() -> {
-                    // Update gauge kelembaban
-                    binding.moistureGaugeView.setMoisturePercent(status.moisture);
+                    // Update mode otomatis (hanya jika berubah dari Firebase)
+                    isAutoSwitchProgrammatic = true;
+                    binding.switchAutoWatering.setChecked(status.autoWatering);
+                    isAutoSwitchProgrammatic = false;
+
+                    // Update UI berdasarkan mode otomatis
+                    updateAutoWateringUI(status.autoWatering);
 
                     // Update status online/offline
                     if (status.online) {
@@ -191,38 +206,55 @@ public class HomeFragment extends Fragment {
                                 ContextCompat.getColor(requireContext(), R.color.success_green));
                         binding.viewDeviceOnlineDot.setBackgroundResource(
                                 R.drawable.shape_icon_circle_green);
+
+                        // Update gauge kelembaban hanya jika online
+                        binding.moistureGaugeView.setMoisturePercent(status.moisture);
+
+                        // Update status pompa
+                        if (status.pumpRunning) {
+                            binding.tvPumpStatus.setText("Pompa: Aktif 💧");
+                            binding.tvPumpStatus.setTextColor(
+                                    ContextCompat.getColor(requireContext(), R.color.info_blue));
+                        } else {
+                            binding.tvPumpStatus.setText("Pompa: Mati");
+                            binding.tvPumpStatus.setTextColor(
+                                    ContextCompat.getColor(requireContext(), R.color.text_gray));
+                        }
+
+                        // Update status penyiraman terakhir
+                        binding.tvLastWatered.setText(status.lastWatered);
+                        binding.tvLastDuration.setText(status.lastDuration + " Detik");
+
+                        // Update status watering
+                        if (status.pumpRunning) {
+                            binding.tvWateringStatus.setText("Status: Sedang Menyiram...");
+                            binding.tvWateringStatus.setTextColor(
+                                    ContextCompat.getColor(requireContext(), R.color.info_blue));
+                        } else {
+                            binding.tvWateringStatus.setText("Status: Selesai");
+                            binding.tvWateringStatus.setTextColor(
+                                    ContextCompat.getColor(requireContext(), R.color.text_dark));
+                        }
                     } else {
+                        // ESP32 OFFLINE — reset semua ke kondisi awal
                         binding.tvDeviceOnlineStatus.setText("ESP32: Offline");
                         binding.tvDeviceOnlineStatus.setTextColor(
                                 ContextCompat.getColor(requireContext(), R.color.danger_red));
                         binding.viewDeviceOnlineDot.setBackgroundResource(
                                 R.drawable.shape_icon_circle_red);
-                    }
 
-                    // Update status pompa
-                    if (status.pumpRunning) {
-                        binding.tvPumpStatus.setText("Pompa: Aktif 💧");
-                        binding.tvPumpStatus.setTextColor(
-                                ContextCompat.getColor(requireContext(), R.color.info_blue));
-                    } else {
+                        // Reset gauge ke 0%
+                        binding.moistureGaugeView.setMoisturePercent(0f);
+
+                        // Reset status pompa
                         binding.tvPumpStatus.setText("Pompa: Mati");
                         binding.tvPumpStatus.setTextColor(
                                 ContextCompat.getColor(requireContext(), R.color.text_gray));
-                    }
 
-                    // Update status penyiraman terakhir
-                    binding.tvLastWatered.setText(status.lastWatered);
-                    binding.tvLastDuration.setText(status.lastDuration + " Detik");
-
-                    // Update status watering
-                    if (status.pumpRunning) {
-                        binding.tvWateringStatus.setText("Status: Sedang Menyiram...");
+                        // Reset status watering
+                        binding.tvWateringStatus.setText("Status: Perangkat Mati");
                         binding.tvWateringStatus.setTextColor(
-                                ContextCompat.getColor(requireContext(), R.color.info_blue));
-                    } else {
-                        binding.tvWateringStatus.setText("Status: Selesai");
-                        binding.tvWateringStatus.setTextColor(
-                                ContextCompat.getColor(requireContext(), R.color.text_dark));
+                                ContextCompat.getColor(requireContext(), R.color.danger_red));
                     }
                 });
             }
@@ -235,6 +267,31 @@ public class HomeFragment extends Fragment {
                                 "Error data: " + errorMessage, Toast.LENGTH_SHORT).show());
             }
         });
+    }
+
+    /**
+     * Memperbarui UI berdasarkan status mode otomatis:
+     * 1. Mengaktifkan/Menonaktifkan tombol manual
+     * 2. Mengubah warna track switch (Ungu jika ON, Merah jika OFF)
+     */
+    private void updateAutoWateringUI(boolean isAuto) {
+        if (binding == null || getContext() == null) return;
+
+        // 1. Disable / Enable tombol manual
+        // Jika Otomatis ON, maka Manual harus Disabled (agar tidak bentrok)
+        binding.btnManualWater.setEnabled(!isAuto);
+        
+        // Atur transparansi: 0.5f (buram) jika disabled, 1.0f (terang) jika enabled
+        binding.btnManualWater.setAlpha(isAuto ? 0.5f : 1.0f);
+
+        // 2. Ganti Warna Switch Track (Programmatic)
+        // Ungu jika ON (@color/primary_purple), Merah jika OFF (@color/danger_red)
+        int colorRes = isAuto ? R.color.primary_purple : R.color.danger_red;
+        int color = ContextCompat.getColor(requireContext(), colorRes);
+        
+        binding.switchAutoWatering.setTrackTintList(
+                android.content.res.ColorStateList.valueOf(color)
+        );
     }
 
     @Override

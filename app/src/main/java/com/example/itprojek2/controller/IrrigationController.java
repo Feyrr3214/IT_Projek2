@@ -38,6 +38,10 @@ public class IrrigationController {
     private final DatabaseReference statusRef;
     private ValueEventListener statusListener;
 
+    private android.os.Handler heartbeatHandler;
+    private Runnable heartbeatRunnable;
+    private DeviceStatus latestStatus;
+
     /**
      * Buat controller baru untuk device tertentu.
      *
@@ -54,7 +58,7 @@ public class IrrigationController {
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 if (!snapshot.exists()) {
                     controlRef.child("manualPump").setValue(false);
-                    controlRef.child("autoWatering").setValue(true);
+                    controlRef.child("autoWatering").setValue(false);
                     controlRef.child("lcdMessage").setValue("");
                     Log.d(TAG, "Inisialisasi default control values");
                 }
@@ -154,6 +158,25 @@ public class IrrigationController {
     }
 
     /**
+     * Ganti kredensial WiFi perangkat (Remote WiFi Setup)
+     */
+    public void updateWifi(String ssid, String pass, @Nullable OnCommandListener listener) {
+        java.util.Map<String, Object> wifiData = new java.util.HashMap<>();
+        wifiData.put("ssid", ssid);
+        wifiData.put("pass", pass);
+
+        controlRef.child("newWifi").setValue(wifiData)
+                .addOnSuccessListener(unused -> {
+                    Log.d(TAG, "Permintaan ganti WiFi terkirim: " + ssid);
+                    if (listener != null) listener.onSuccess();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Gagal kirim permintaan WiFi: " + e.getMessage());
+                    if (listener != null) listener.onFailure(e.getMessage());
+                });
+    }
+
+    /**
      * Potong teks agar tidak melebihi 16 karakter LCD
      */
     private String truncateLcd(String text) {
@@ -171,19 +194,66 @@ public class IrrigationController {
     public void listenToStatus(OnStatusUpdateListener listener) {
         stopListening(); // Hapus listener lama kalau ada
 
+        heartbeatHandler = new android.os.Handler(android.os.Looper.getMainLooper());
+        heartbeatRunnable = () -> {
+            if (latestStatus != null) {
+                latestStatus.online = false;
+                listener.onStatusUpdate(latestStatus);
+            }
+        };
+
         statusListener = new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 if (!snapshot.exists()) return;
 
-                DeviceStatus status = new DeviceStatus();
-                status.pumpRunning = getBooleanSafe(snapshot, "pumpRunning", false);
-                status.moisture = getIntSafe(snapshot, "moisture", 0);
-                status.lastWatered = getStringSafe(snapshot, "lastWatered", "-");
-                status.lastDuration = getIntSafe(snapshot, "lastDuration", 0);
-                status.online = getBooleanSafe(snapshot, "online", false);
+                DataSnapshot statusNode = snapshot.child("status");
+                DataSnapshot controlNode = snapshot.child("control");
 
+                DeviceStatus status = new DeviceStatus();
+
+                // Status dari node 'status'
+                if (statusNode.exists()) {
+                    status.pumpRunning = getBooleanSafe(statusNode, "pumpRunning", false);
+                    status.moisture = getIntSafe(statusNode, "moisture", 0);
+                    status.lastWatered = getStringSafe(statusNode, "lastWatered", "-");
+                    status.lastDuration = getIntSafe(statusNode, "lastDuration", 0);
+                    
+                    boolean isOnline = getBooleanSafe(statusNode, "online", false);
+                    int lastPing = getIntSafe(statusNode, "lastPing", 0);
+                    
+                    if (lastPing > 0) {
+                        long currentUnix = System.currentTimeMillis() / 1000;
+                        // Bandingkan waktu HP dan Ping ESP32. Jika usianya lebih dari 15 detik, artinya basi (offline)
+                        if (Math.abs(currentUnix - lastPing) > 15) { 
+                            isOnline = false;
+                        } else {
+                            isOnline = true;
+                        }
+                    } else {
+                        // Jika lastPing = 0 (data hantu lama di database), anggap aja selalu OFFLINE
+                        // Sampai alat dinyalakan lagi dan mengirim lastPing yang baru.
+                        isOnline = false;
+                    }
+                    status.online = isOnline;
+                }
+
+                // Status dari node 'control'
+                if (controlNode.exists()) {
+                    status.autoWatering = getBooleanSafe(controlNode, "autoWatering", true);
+                }
+
+                latestStatus = status;
                 listener.onStatusUpdate(status);
+
+                // Reset timeout heartbeat
+                if (heartbeatHandler != null) {
+                    heartbeatHandler.removeCallbacks(heartbeatRunnable);
+                    if (status.online) {
+                        // 15 detik tanpa data masuk dari ESP32 = OFFLINE
+                        heartbeatHandler.postDelayed(heartbeatRunnable, 15000); 
+                    }
+                }
             }
 
             @Override
@@ -193,7 +263,8 @@ public class IrrigationController {
             }
         };
 
-        statusRef.addValueEventListener(statusListener);
+        // Listen ke level device untuk dapet control & status sekaligus
+        statusRef.getParent().addValueEventListener(statusListener);
     }
 
     /**
@@ -201,8 +272,12 @@ public class IrrigationController {
      */
     public void stopListening() {
         if (statusListener != null) {
-            statusRef.removeEventListener(statusListener);
+            statusRef.getParent().removeEventListener(statusListener);
             statusListener = null;
+        }
+        if (heartbeatHandler != null) {
+            heartbeatHandler.removeCallbacks(heartbeatRunnable);
+            heartbeatHandler = null;
         }
     }
 
@@ -251,6 +326,7 @@ public class IrrigationController {
      */
     public static class DeviceStatus {
         public boolean pumpRunning = false;
+        public boolean autoWatering = false; // Tambahan: status mode otomatis (Default: OFF)
         public int moisture = 0;
         public String lastWatered = "-";
         public int lastDuration = 0;

@@ -24,6 +24,7 @@
             android:orientation="vertical">
 
             <TextView
+                android:id="@+id/tvHeaderName"
                 android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
                 android:text="Halo, User"
@@ -164,6 +165,60 @@
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
                             android:text="Atur batasan nilai kelembaban"
+                            android:textColor="@color/text_gray"
+                            android:textSize="12sp" />
+                    </LinearLayout>
+
+                    <ImageView
+                        android:layout_width="24dp"
+                        android:layout_height="24dp"
+                        android:src="@drawable/ic_arrow_right"
+                        android:tint="@color/text_gray" />
+                </LinearLayout>
+            </com.google.android.material.card.MaterialCardView>
+
+            <!-- Ganti Jaringan WiFi -->
+            <com.google.android.material.card.MaterialCardView
+                android:id="@+id/cardChangeWifi"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                style="@style/CardStyle">
+
+                <LinearLayout
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:gravity="center_vertical"
+                    android:orientation="horizontal"
+                    android:padding="16dp">
+
+                    <ImageView
+                        android:layout_width="40dp"
+                        android:layout_height="40dp"
+                        android:background="@drawable/shape_icon_circle_red"
+                        android:src="@drawable/ic_send"
+                        android:tint="@color/danger_red"
+                        android:padding="8dp" />
+
+                    <LinearLayout
+                        android:layout_width="0dp"
+                        android:layout_height="wrap_content"
+                        android:layout_marginStart="16dp"
+                        android:layout_weight="1"
+                        android:orientation="vertical">
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Ganti Jaringan WiFi"
+                            android:textColor="@color/text_dark"
+                            android:textSize="14sp"
+                            android:textStyle="bold" />
+
+                        <TextView
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:text="Update SSID dan Password alat"
                             android:textColor="@color/text_gray"
                             android:textSize="12sp" />
                     </LinearLayout>

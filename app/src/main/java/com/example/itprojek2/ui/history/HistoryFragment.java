@@ -41,6 +41,12 @@ public class HistoryFragment extends Fragment {
         binding.rvHistory.setLayoutManager(new LinearLayoutManager(getContext()));
         binding.rvHistory.setAdapter(adapter);
 
+        // Load nama user dari sesi
+        android.content.SharedPreferences prefs = requireActivity().getSharedPreferences("UserSession", android.content.Context.MODE_PRIVATE);
+        String name = prefs.getString("name", "User");
+        String firstName = name.contains(" ") ? name.substring(0, name.indexOf(" ")) : name;
+        binding.tvHeaderName.setText("Halo, " + firstName);
+
         binding.ivNotification.setOnClickListener(v ->
                 androidx.navigation.Navigation.findNavController(v).navigate(com.example.itprojek2.R.id.notificationFragment));
 

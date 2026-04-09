@@ -1,37 +1,158 @@
-<?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+<ScrollView xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
-    android:orientation="vertical"
-    android:padding="24dp">
+    android:fillViewport="true"
+    android:background="@color/background_light">
 
-    <EditText
-        android:id="@+id/edtPhone"
+    <androidx.constraintlayout.widget.ConstraintLayout
         android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Nomor HP (misal: +6281234567890)"
-        android:inputType="phone" />
+        android:layout_height="wrap_content">
 
-    <Button
-        android:id="@+id/btnSendOtp"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Kirim OTP"
-        android:layout_marginTop="16dp" />
+        <!-- Fluid Curve Background -->
+        <ImageView
+            android:id="@+id/bgCurve"
+            android:layout_width="0dp"
+            android:layout_height="280dp"
+            android:scaleType="fitXY"
+            android:src="@drawable/bg_curve_profile"
+            app:layout_constraintEnd_toEndOf="parent"
+            app:layout_constraintStart_toStartOf="parent"
+            app:layout_constraintTop_toTopOf="parent" />
 
-    <EditText
-        android:id="@+id/edtOtp"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:hint="Kode OTP"
-        android:inputType="number"
-        android:layout_marginTop="24dp" />
+        <!-- Header Content -->
+        <LinearLayout
+            android:id="@+id/headerContainer"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:gravity="center"
+            android:orientation="vertical"
+            android:paddingTop="60dp"
+            app:layout_constraintTop_toTopOf="parent">
 
-    <Button
-        android:id="@+id/btnVerify"
-        android:layout_width="match_parent"
-        android:layout_height="wrap_content"
-        android:text="Verifikasi"
-        android:layout_marginTop="16dp" />
+            <ImageView
+                android:layout_width="80dp"
+                android:layout_height="80dp"
+                android:src="@drawable/ic_water_drop"
+                app:tint="@color/surface_white" />
 
-</LinearLayout>
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Verifikasi OTP"
+                android:textColor="@color/surface_white"
+                android:textSize="24sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Keamanan Akun Kamu Prioritas Kami"
+                android:textColor="@color/surface_white"
+                android:textSize="12sp"
+                android:alpha="0.8" />
+        </LinearLayout>
+
+        <!-- Form Container -->
+        <com.google.android.material.card.MaterialCardView
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="24dp"
+            android:layout_marginTop="32dp"
+            android:layout_marginEnd="24dp"
+            android:layout_marginBottom="32dp"
+            app:cardCornerRadius="24dp"
+            app:cardElevation="8dp"
+            app:layout_constraintTop_toBottomOf="@id/headerContainer">
+
+            <LinearLayout
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:orientation="vertical"
+                android:padding="24dp">
+
+                <TextView
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:text="Masukkan kode yang dikirim ke nomor HP kamu melalui WhatsApp/SMS."
+                    android:textColor="@color/text_gray"
+                    android:textSize="13sp"
+                    android:layout_marginBottom="20dp"
+                    android:gravity="center" />
+
+                <!-- Input Phone -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilPhone"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="16dp"
+                    android:hint="Nomor HP"
+                    app:boxCornerRadiusBottomEnd="16dp"
+                    app:boxCornerRadiusBottomStart="16dp"
+                    app:boxCornerRadiusTopEnd="16dp"
+                    app:boxCornerRadiusTopStart="16dp"
+                    app:startIconDrawable="@drawable/ic_phone">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtPhone"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="phone" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnSendOtp"
+                    style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="KIRIM ULANG KODE"
+                    android:textColor="@color/primary_purple"
+                    app:cornerRadius="16dp"
+                    app:strokeColor="@color/primary_purple"
+                    android:layout_marginBottom="24dp" />
+
+                <View
+                    android:layout_width="match_parent"
+                    android:layout_height="1dp"
+                    android:background="#EEEEEE"
+                    android:layout_marginBottom="24dp" />
+
+                <!-- Input OTP -->
+                <com.google.android.material.textfield.TextInputLayout
+                    android:id="@+id/tilOtp"
+                    style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:layout_marginBottom="24dp"
+                    android:hint="6-Digit Kode OTP"
+                    app:boxCornerRadiusBottomEnd="16dp"
+                    app:boxCornerRadiusBottomStart="16dp"
+                    app:boxCornerRadiusTopEnd="16dp"
+                    app:boxCornerRadiusTopStart="16dp"
+                    app:startIconDrawable="@drawable/ic_password_dots">
+
+                    <com.google.android.material.textfield.TextInputEditText
+                        android:id="@+id/edtOtp"
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:inputType="number"
+                        android:maxLength="6" />
+                </com.google.android.material.textfield.TextInputLayout>
+
+                <com.google.android.material.button.MaterialButton
+                    android:id="@+id/btnVerify"
+                    android:layout_width="match_parent"
+                    android:layout_height="56dp"
+                    android:text="VERIFIKASI"
+                    android:textAllCaps="true"
+                    android:textStyle="bold"
+                    app:cornerRadius="16dp"
+                    android:backgroundTint="@color/primary_purple" />
+
+            </LinearLayout>
+        </com.google.android.material.card.MaterialCardView>
+
+    </androidx.constraintlayout.widget.ConstraintLayout>
+</ScrollView>

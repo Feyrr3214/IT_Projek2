@@ -23,8 +23,8 @@ public class MoistureGaugeView extends View {
     private Paint tickPaint;
 
     private float moisturePercent = 0f; // Mulai dari 0 untuk animasi
-    private float targetMoisturePercent = 40f;
-    private String statusLabel = "normal";
+    private float targetMoisturePercent = 0f;
+    private String statusLabel = "kering";
 
     private static final float START_ANGLE = 150f;
     private static final float SWEEP_ANGLE = 240f;
@@ -95,6 +95,9 @@ public class MoistureGaugeView extends View {
         tickPaint.setStrokeCap(Paint.Cap.ROUND);
 
         arcRect = new RectF();
+
+        // Update warna awal label sesuai nilai default (0)
+        updateStatusLabel(targetMoisturePercent);
     }
 
     @Override
