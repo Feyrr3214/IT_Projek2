@@ -41,6 +41,8 @@ public class IrrigationController {
     private android.os.Handler heartbeatHandler;
     private Runnable heartbeatRunnable;
     private DeviceStatus latestStatus;
+    
+    private long serverTimeOffset = 0L;
 
     /**
      * Buat controller baru untuk device tertentu.
@@ -52,14 +54,19 @@ public class IrrigationController {
         controlRef = rootRef.child("devices").child(deviceId).child("control");
         statusRef = rootRef.child("devices").child(deviceId).child("status");
 
-        // Inisialisasi default values jika belum ada
+        // Selalu clear lcdMessage saat app start agar pesan lama/stale tidak terbawa
+        // (Sebelumnya Android nulis pesan operasional ke lcdMessage, sekarang sudah tidak lagi)
+        controlRef.child("lcdMessage").setValue("")
+                .addOnSuccessListener(unused -> Log.d(TAG, "lcdMessage di-clear saat startup"))
+                .addOnFailureListener(e -> Log.e(TAG, "Gagal clear lcdMessage: " + e.getMessage()));
+
+        // Inisialisasi default values lainnya jika belum ada
         controlRef.child("manualPump").addListenerForSingleValueEvent(new ValueEventListener() {
             @Override
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 if (!snapshot.exists()) {
                     controlRef.child("manualPump").setValue(false);
                     controlRef.child("autoWatering").setValue(false);
-                    controlRef.child("lcdMessage").setValue("");
                     Log.d(TAG, "Inisialisasi default control values");
                 }
             }
@@ -69,6 +76,19 @@ public class IrrigationController {
                 Log.e(TAG, "Gagal cek data awal: " + error.getMessage());
             }
         });
+
+        // Sinkronisasi waktu HP dengan Server Firebase biar nggak kena bug beda jam (clock drift)
+        DatabaseReference offsetRef = FirebaseDatabase.getInstance().getReference(".info/serverTimeOffset");
+        offsetRef.addValueEventListener(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                if (snapshot.exists() && snapshot.getValue() != null) {
+                    serverTimeOffset = snapshot.getValue(Long.class);
+                }
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {}
+        });
     }
 
     // ========================================
@@ -76,12 +96,11 @@ public class IrrigationController {
     // ========================================
 
     /**
-     * Nyalakan pompa manual + kirim pesan ke LCD
+     * Nyalakan pompa manual — notifikasi LCD ditangani langsung di ESP32
      */
     public void startManualPump(@Nullable OnCommandListener listener) {
         controlRef.child("manualPump").setValue(true)
                 .addOnSuccessListener(unused -> {
-                    setLcdMessage("Pompa Manual", "Sedang Aktif...");
                     Log.d(TAG, "Pompa manual DINYALAKAN");
                     if (listener != null) listener.onSuccess();
                 })
@@ -92,12 +111,11 @@ public class IrrigationController {
     }
 
     /**
-     * Matikan pompa manual + kirim pesan ke LCD
+     * Matikan pompa manual — notifikasi LCD ditangani langsung di ESP32
      */
     public void stopManualPump(@Nullable OnCommandListener listener) {
         controlRef.child("manualPump").setValue(false)
                 .addOnSuccessListener(unused -> {
-                    setLcdMessage("Pompa Manual", "Dimatikan");
                     Log.d(TAG, "Pompa manual DIMATIKAN");
                     if (listener != null) listener.onSuccess();
                 })
@@ -108,16 +126,11 @@ public class IrrigationController {
     }
 
     /**
-     * Atur mode penyiraman otomatis
+     * Atur mode penyiraman otomatis — notifikasi LCD ditangani langsung di ESP32
      */
     public void setAutoWatering(boolean enabled, @Nullable OnCommandListener listener) {
         controlRef.child("autoWatering").setValue(enabled)
                 .addOnSuccessListener(unused -> {
-                    if (enabled) {
-                        setLcdMessage("Mode Otomatis", "Diaktifkan");
-                    } else {
-                        setLcdMessage("Mode Otomatis", "Dinonaktifkan");
-                    }
                     Log.d(TAG, "Auto watering: " + (enabled ? "AKTIF" : "NONAKTIF"));
                     if (listener != null) listener.onSuccess();
                 })
@@ -155,6 +168,17 @@ public class IrrigationController {
      */
     public void setLcdMessage(String line1) {
         setLcdMessage(line1, "");
+    }
+
+    /**
+     * Hapus pesan custom dari LCD — ESP32 akan kembali ke tampilan status normal.
+     */
+    public void clearLcdMessage() {
+        controlRef.child("lcdMessage").setValue("")
+                .addOnSuccessListener(unused ->
+                        Log.d(TAG, "LCD message dihapus"))
+                .addOnFailureListener(e ->
+                        Log.e(TAG, "Gagal hapus LCD message: " + e.getMessage()));
     }
 
     /**
@@ -220,19 +244,38 @@ public class IrrigationController {
                     status.lastDuration = getIntSafe(statusNode, "lastDuration", 0);
                     
                     boolean isOnline = getBooleanSafe(statusNode, "online", false);
-                    int lastPing = getIntSafe(statusNode, "lastPing", 0);
-                    
-                    if (lastPing > 0) {
-                        long currentUnix = System.currentTimeMillis() / 1000;
-                        // Bandingkan waktu HP dan Ping ESP32. Jika usianya lebih dari 15 detik, artinya basi (offline)
-                        if (Math.abs(currentUnix - lastPing) > 15) { 
+                    long lastPingRaw = getLongSafe(statusNode, "lastPing", 0L);
+
+                    if (lastPingRaw > 0) {
+                        // ESP32 bisa nulis lastPing dalam 2 format:
+                        //  - Epoch DETIK   (dari NTP langsung, contoh: 1_700_000_000)
+                        //  - Epoch MILIDETIK (dari Firebase.setTimestamp(), contoh: 1_700_000_000_000)
+                        // Bedainnya: epoch milidetik >= 10_000_000_000 (> 10 milyar)
+                        long lastPingMs;
+                        if (lastPingRaw < 10_000_000_000L) {
+                            lastPingMs = lastPingRaw * 1000L; // Konversi detik → ms
+                        } else {
+                            lastPingMs = lastPingRaw; // Sudah dalam ms
+                        }
+
+                        long currentMs = System.currentTimeMillis() + serverTimeOffset;
+                        long diffSeconds = Math.abs(currentMs - lastPingMs) / 1000;
+                        Log.d(TAG, "lastPing diff: " + diffSeconds + " detik");
+
+                        // Jika selisih > 30 detik, anggap offline
+                        if (diffSeconds > 30) {
                             isOnline = false;
                         } else {
                             isOnline = true;
                         }
+
+                    } else if (lastPingRaw == -1) {
+                        // NTP belum sync saat data dikirim, fallback ke field "online"
+                        // isOnline sudah dibaca dari getBooleanSafe di atas → tetap pakai itu
+                        Log.d(TAG, "lastPing = -1 (NTP belum sync), fallback ke field online: " + isOnline);
+
                     } else {
-                        // Jika lastPing = 0 (data hantu lama di database), anggap aja selalu OFFLINE
-                        // Sampai alat dinyalakan lagi dan mengirim lastPing yang baru.
+                        // lastPing = 0: data lama/hantu sebelum fix, anggap OFFLINE
                         isOnline = false;
                     }
                     status.online = isOnline;
@@ -250,8 +293,8 @@ public class IrrigationController {
                 if (heartbeatHandler != null) {
                     heartbeatHandler.removeCallbacks(heartbeatRunnable);
                     if (status.online) {
-                        // 15 detik tanpa data masuk dari ESP32 = OFFLINE
-                        heartbeatHandler.postDelayed(heartbeatRunnable, 15000); 
+                        // 20 detik tanpa data masuk dari ESP32 = OFFLINE
+                        heartbeatHandler.postDelayed(heartbeatRunnable, 20000); 
                     }
                 }
             }
@@ -302,6 +345,26 @@ public class IrrigationController {
         if (child.exists() && child.getValue() != null) {
             try {
                 return ((Long) child.getValue()).intValue();
+            } catch (Exception e) {
+                return def;
+            }
+        }
+        return def;
+    }
+
+    private long getLongSafe(DataSnapshot snapshot, String key, long def) {
+        DataSnapshot child = snapshot.child(key);
+        if (child.exists() && child.getValue() != null) {
+            try {
+                if (child.getValue() instanceof Long) {
+                    return (Long) child.getValue();
+                } else if (child.getValue() instanceof Integer) {
+                    return ((Integer) child.getValue()).longValue();
+                } else if (child.getValue() instanceof Double) {
+                    return ((Double) child.getValue()).longValue();
+                } else {
+                    return Long.parseLong(child.getValue().toString());
+                }
             } catch (Exception e) {
                 return def;
             }

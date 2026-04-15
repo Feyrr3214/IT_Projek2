@@ -137,8 +137,16 @@ public class EditProfileFragment extends Fragment {
                 String avatar = snapshot.child("avatar").getValue(String.class);
 
                 if (name != null) etName.setText(name);
-                if (phone != null) etPhone.setText(phone);
-                
+                if (phone != null) {
+                    String cleanPhone = phone;
+                    if (cleanPhone.startsWith("+62")) {
+                        cleanPhone = cleanPhone.substring(3).trim();
+                    } else if (cleanPhone.startsWith("0")) {
+                        cleanPhone = cleanPhone.substring(1).trim();
+                    }
+                    etPhone.setText(cleanPhone);
+                }
+
                 if (avatar != null && !avatar.isEmpty()) {
                     try {
                         byte[] decodedString = Base64.decode(avatar, Base64.DEFAULT);
@@ -166,6 +174,12 @@ public class EditProfileFragment extends Fragment {
             Toast.makeText(getContext(), "Nama dan Nomor Telepon tidak boleh kosong", Toast.LENGTH_SHORT).show();
             return;
         }
+        
+        // Pakaikan kembali format +62 saat disimpan ke database
+        if (phone.startsWith("0")) {
+            phone = phone.substring(1);
+        }
+        phone = "+62 " + phone.replaceAll("[^0-9]", "");
 
         view.findViewById(R.id.btnSaveProfile).setEnabled(false);
 
