@@ -183,6 +183,14 @@ public class HomeFragment extends Fragment {
         });
 
         // ========================================
+        // TOMBOL HAPUS PESAN LCD
+        // ========================================
+        binding.btnClearLcd.setOnClickListener(v -> {
+            controller.clearLcdMessage();
+            Toast.makeText(getContext(), "Pesan LCD dihapus.", Toast.LENGTH_SHORT).show();
+        });
+
+        // ========================================
         // LISTENER STATUS REALTIME DARI ESP32
         // ========================================
         controller.listenToStatus(new IrrigationController.OnStatusUpdateListener() {
