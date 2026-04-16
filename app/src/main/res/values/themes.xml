@@ -28,7 +28,7 @@
     </style>
 
     <style name="ButtonBlue" parent="Widget.MaterialComponents.Button">
-        <item name="backgroundTint">@color/info_blue</item>
+        <item name="backgroundTint">@color/primary_purple</item>
         <item name="cornerRadius">24dp</item>
         <item name="android:textColor">@color/surface_white</item>
         <item name="android:textStyle">bold</item>

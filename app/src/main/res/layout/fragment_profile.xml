@@ -163,7 +163,7 @@
                 android:layout_marginStart="24dp"
                 android:layout_marginTop="12dp"
                 android:layout_marginEnd="24dp"
-                android:background="@drawable/bg_input_gray"
+                android:background="@drawable/bg_card_white"
                 android:orientation="vertical"
                 android:padding="20dp"
                 app:layout_constraintEnd_toEndOf="parent"

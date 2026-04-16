@@ -85,7 +85,7 @@
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:layout_marginBottom="16dp"
+                android:layout_marginBottom="32dp"
                 android:hint="Konfirmasi Password"
                 app:boxCornerRadiusBottomEnd="16dp"
                 app:boxCornerRadiusBottomStart="16dp"
@@ -101,34 +101,14 @@
                     android:inputType="textPassword" />
             </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Input Nomor HP -->
-            <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/tilRegisterPhone"
-                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
-                android:layout_width="match_parent"
-                android:layout_height="wrap_content"
-                android:layout_marginBottom="32dp"
-                android:hint="Nomor HP"
-                app:boxCornerRadiusBottomEnd="16dp"
-                app:boxCornerRadiusBottomStart="16dp"
-                app:boxCornerRadiusTopEnd="16dp"
-                app:boxCornerRadiusTopStart="16dp"
-                app:prefixText="+62"
-                app:startIconDrawable="@drawable/ic_phone">
 
-                <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etRegisterPhone"
-                    android:layout_width="match_parent"
-                    android:layout_height="wrap_content"
-                    android:inputType="phone" />
-            </com.google.android.material.textfield.TextInputLayout>
 
-            <!-- Tombol Lanjut -->
+            <!-- Tombol Daftar -->
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnRegister"
                 android:layout_width="match_parent"
                 android:layout_height="52dp"
-                android:text="Lanjut"
+                android:text="Daftar"
                 android:textAllCaps="false"
                 android:textSize="16sp"
                 android:textStyle="bold"

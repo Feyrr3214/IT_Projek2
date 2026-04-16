@@ -1,5 +1,7 @@
 package com.example.itprojek2.ui.auth;
 
+import android.content.Context;
+import android.content.SharedPreferences;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -11,6 +13,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
 import com.example.itprojek2.R;
+import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -19,6 +22,7 @@ import com.google.firebase.database.ValueEventListener;
 
 public class LoginFragment extends Fragment {
 
+    private FirebaseAuth mAuth;
     private DatabaseReference dbRef;
 
     @Nullable
@@ -31,13 +35,13 @@ public class LoginFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        mAuth = FirebaseAuth.getInstance();
         dbRef = FirebaseDatabase.getInstance().getReference("users");
 
         EditText etName = view.findViewById(R.id.etLoginName);
         EditText etPassword = view.findViewById(R.id.etLoginPassword);
         View btnLogin = view.findViewById(R.id.btnLogin);
 
-        // Tombol Login
         btnLogin.setOnClickListener(v -> {
             String name     = etName.getText().toString().trim();
             String password = etPassword.getText().toString().trim();
@@ -54,56 +58,65 @@ public class LoginFragment extends Fragment {
             // Simpan NavController sebelum masuk callback async
             androidx.navigation.NavController navController = Navigation.findNavController(v);
 
-            // Nonaktifkan tombol sementara cek ke Firebase
             btnLogin.setEnabled(false);
-            android.widget.Toast.makeText(getContext(), "Memeriksa akun...", android.widget.Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "Memeriksa akun...", Toast.LENGTH_SHORT).show();
 
-            // Query ke Firebase: cari user berdasarkan name
-            dbRef.orderByChild("name").equalTo(name)
-                    .addListenerForSingleValueEvent(new ValueEventListener() {
-                        @Override
-                        public void onDataChange(@NonNull DataSnapshot snapshot) {
-                            btnLogin.setEnabled(true);
+            // Buat email palsu dari nama (sama dengan saat registrasi)
+            String fakeEmail = name.toLowerCase().replaceAll("\\s+", "") + "@smartwater.app";
 
-                            if (!snapshot.exists()) {
-                                // Akun tidak ditemukan di database
-                                etName.setError("Akun tidak ada atau belum terdaftar");
-                                Toast.makeText(getContext(),
-                                        "Akun tidak ditemukan. Silakan daftar terlebih dahulu.",
-                                        Toast.LENGTH_LONG).show();
-                                return;
-                            }
+            // Login via Firebase Authentication (gratis - Spark Plan)
+            mAuth.signInWithEmailAndPassword(fakeEmail, password)
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            String uid = mAuth.getCurrentUser().getUid();
 
-                            boolean loginSuccess = false;
-                            String loggedInUid = null; // Tambahkan untuk simpan UID
+                            // Ambil data user dari Realtime Database
+                            dbRef.child(uid).addListenerForSingleValueEvent(new ValueEventListener() {
+                                @Override
+                                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                    btnLogin.setEnabled(true);
 
-                            // Loop untuk cek password
-                            for (DataSnapshot userSnap : snapshot.getChildren()) {
-                                String dbPassword = userSnap.child("password").getValue(String.class);
-                                if (dbPassword != null && dbPassword.equals(password)) {
-                                    loginSuccess = true;
-                                    loggedInUid = userSnap.getKey();
-                                    break;
+                                    String storedName = snapshot.child("name").getValue(String.class);
+                                    String displayName = storedName != null ? storedName : name;
+
+                                    // Simpan sesi lokal
+                                    SharedPreferences prefs = requireActivity()
+                                            .getSharedPreferences("UserSession", Context.MODE_PRIVATE);
+                                    prefs.edit()
+                                            .putString("uid", uid)
+                                            .putString("name", displayName)
+                                            .apply();
+
+                                    Toast.makeText(getContext(),
+                                            "Login berhasil! Selamat datang, " + displayName + "!",
+                                            Toast.LENGTH_SHORT).show();
+                                    navController.navigate(R.id.action_login_to_main);
                                 }
-                            }
 
-                            if (loginSuccess && loggedInUid != null) {
-                                // Simpan sesi secara lokal ke SharedPreferences
-                                android.content.SharedPreferences prefs = requireActivity().getSharedPreferences("UserSession", android.content.Context.MODE_PRIVATE);
-                                prefs.edit().putString("uid", loggedInUid).putString("name", name).apply();
+                                @Override
+                                public void onCancelled(@NonNull DatabaseError error) {
+                                    btnLogin.setEnabled(true);
+                                    Toast.makeText(getContext(),
+                                            "Gagal ambil data: " + error.getMessage(),
+                                            Toast.LENGTH_SHORT).show();
+                                }
+                            });
 
-                                Toast.makeText(getContext(), "Login berhasil! Selamat datang, " + name + "!", Toast.LENGTH_SHORT).show();
-                                navController.navigate(R.id.action_login_to_main);
-                            } else {
+                        } else {
+                            btnLogin.setEnabled(true);
+                            String errMsg = task.getException() != null
+                                    ? task.getException().getMessage() : "Error tidak diketahui";
+
+                            // Deteksi error spesifik
+                            if (errMsg != null && (errMsg.contains("no user record") || errMsg.contains("user-not-found"))) {
+                                etName.setError("Akun tidak ditemukan, silakan daftar dulu");
+                                Toast.makeText(getContext(), "Akun tidak ditemukan.", Toast.LENGTH_LONG).show();
+                            } else if (errMsg != null && (errMsg.contains("password is invalid") || errMsg.contains("wrong-password"))) {
                                 etPassword.setError("Password salah");
                                 Toast.makeText(getContext(), "Password yang kamu masukkan salah.", Toast.LENGTH_SHORT).show();
+                            } else {
+                                Toast.makeText(getContext(), "Login gagal: " + errMsg, Toast.LENGTH_LONG).show();
                             }
-                        }
-
-                        @Override
-                        public void onCancelled(@NonNull DatabaseError error) {
-                            btnLogin.setEnabled(true);
-                            Toast.makeText(getContext(), "Gagal terhubung ke database: " + error.getMessage(), Toast.LENGTH_SHORT).show();
                         }
                     });
         });
