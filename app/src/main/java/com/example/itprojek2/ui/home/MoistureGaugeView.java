@@ -4,6 +4,7 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.SweepGradient;
@@ -16,194 +17,195 @@ public class MoistureGaugeView extends View {
 
     private Paint trackPaint;
     private Paint progressPaint;
-    private Paint textPaint;
-    private Paint subTextPaint;
+    private Paint glowPaint;
+    private Paint numberPaint;
+    private Paint unitPaint;
     private Paint labelBgPaint;
     private Paint labelTextPaint;
-    private Paint tickPaint;
+    private Paint dotPaint;
 
-    private float moisturePercent = 0f; // Mulai dari 0 untuk animasi
-    private float targetMoisturePercent = 0f;
-    private String statusLabel = "kering";
+    private float displayPercent = 0f;
+    private float targetPercent  = 0f;
+    private String statusLabel   = "Kering";
 
     private static final float START_ANGLE = 150f;
     private static final float SWEEP_ANGLE = 240f;
 
-    private RectF arcRect;
-    private float strokeWidth;
+    private final RectF arcRect = new RectF();
+    private float sw; // stroke width
     private ValueAnimator animator;
 
     public MoistureGaugeView(Context context) {
-        super(context);
-        init();
+        super(context); init();
     }
-
     public MoistureGaugeView(Context context, AttributeSet attrs) {
-        super(context, attrs);
-        init();
+        super(context, attrs); init();
     }
-
     public MoistureGaugeView(Context context, AttributeSet attrs, int defStyleAttr) {
-        super(context, attrs, defStyleAttr);
-        init();
+        super(context, attrs, defStyleAttr); init();
     }
 
     private void init() {
-        setLayerType(View.LAYER_TYPE_SOFTWARE, null); // Untuk shadow (glowing effect)
+        setLayerType(LAYER_TYPE_SOFTWARE, null);
+        float d = getResources().getDisplayMetrics().density;
+        sw = 20f * d;
 
-        float density = getResources().getDisplayMetrics().density;
-        strokeWidth = 20f * density;
-
+        // Track — bright semi-transparent white (dasar arc)
         trackPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         trackPaint.setStyle(Paint.Style.STROKE);
-        trackPaint.setStrokeWidth(strokeWidth);
+        trackPaint.setStrokeWidth(sw);
         trackPaint.setStrokeCap(Paint.Cap.ROUND);
-        trackPaint.setColor(Color.parseColor("#E8E5F7")); // Warna abu-abu kebiruan terang
-        trackPaint.setShadowLayer(10f, 0f, 4f, Color.parseColor("#1A000000"));
+        trackPaint.setColor(Color.parseColor("#65FFFFFF"));
 
+        // Wide glow behind progress
+        glowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        glowPaint.setStyle(Paint.Style.STROKE);
+        glowPaint.setStrokeWidth(sw * 2.4f);
+        glowPaint.setStrokeCap(Paint.Cap.ROUND);
+        glowPaint.setShadowLayer(22f, 0f, 0f, Color.parseColor("#70E8E6FF"));
+
+        // Progress arc — shader set in onDraw
         progressPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
         progressPaint.setStyle(Paint.Style.STROKE);
-        progressPaint.setStrokeWidth(strokeWidth);
+        progressPaint.setStrokeWidth(sw);
         progressPaint.setStrokeCap(Paint.Cap.ROUND);
-        progressPaint.setColor(Color.parseColor("#7B6ED6"));
-        progressPaint.setShadowLayer(15f, 0f, 0f, Color.parseColor("#807B6ED6")); // Glowing purple
+        progressPaint.setShadowLayer(16f, 0f, 0f, Color.parseColor("#99E8E6FF"));
 
-        textPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        textPaint.setTextAlign(Paint.Align.CENTER);
-        textPaint.setTextSize(48f * density);
-        textPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
-        textPaint.setColor(Color.parseColor("#2B2B2B"));
+        // Big number — white
+        numberPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        numberPaint.setTextSize(62f * d);
+        numberPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        numberPaint.setColor(Color.WHITE);
+        numberPaint.setShadowLayer(6f, 0f, 2f, Color.parseColor("#40000000"));
 
-        subTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        subTextPaint.setTextAlign(Paint.Align.CENTER);
-        subTextPaint.setTextSize(14f * density);
-        subTextPaint.setColor(Color.parseColor("#8E8E93"));
+        // "%" unit — elegant light purple/white
+        unitPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        unitPaint.setTextSize(26f * d);
+        unitPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
+        unitPaint.setColor(Color.parseColor("#E8E6FF"));
 
+        // Badge bg — semi-transparent white
         labelBgPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        labelBgPaint.setColor(Color.parseColor("#7B6ED6"));
-        labelBgPaint.setShadowLayer(8f, 0f, 4f, Color.parseColor("#4D7B6ED6"));
+        labelBgPaint.setColor(Color.parseColor("#35FFFFFF"));
 
+        // Badge text — white
         labelTextPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        labelTextPaint.setColor(0xFFFFFFFF);
+        labelTextPaint.setColor(Color.WHITE);
         labelTextPaint.setTextAlign(Paint.Align.CENTER);
-        labelTextPaint.setTextSize(13f * density);
+        labelTextPaint.setTextSize(13f * d);
         labelTextPaint.setTypeface(Typeface.create(Typeface.DEFAULT, Typeface.BOLD));
 
-        tickPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
-        tickPaint.setColor(Color.parseColor("#D1D1D6"));
-        tickPaint.setStrokeWidth(2f * density);
-        tickPaint.setStrokeCap(Paint.Cap.ROUND);
-
-        arcRect = new RectF();
-
-        // Update warna awal label sesuai nilai default (0)
-        updateStatusLabel(targetMoisturePercent);
+        // Glowing dot at arc tip
+        dotPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        dotPaint.setColor(Color.WHITE);
+        dotPaint.setShadowLayer(18f, 0f, 0f, Color.parseColor("#DDEEFFFF"));
     }
 
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
 
-        float density = getResources().getDisplayMetrics().density;
-        float padding = strokeWidth + 10 * density;
-        float cx = getWidth() / 2f;
+        float d  = getResources().getDisplayMetrics().density;
+        float cx = getWidth()  / 2f;
         float cy = getHeight() / 2f;
-        float radius = Math.min(cx, cy) - padding;
+        float padding = sw * 1.7f + 8f * d;
+        float radius  = Math.min(cx, cy) - padding;
 
         arcRect.set(cx - radius, cy - radius, cx + radius, cy + radius);
 
-        // Tambahkan gradient modern untuk progress paint
-        int[] colors = {Color.parseColor("#9D88F2"), Color.parseColor("#5F4EBE")};
-        float[] positions = {0f, 1f};
-        SweepGradient gradient = new SweepGradient(cx, cy, colors, positions);
-        // Putar gradient agar menyesuaikan ke angka START_ANGLE
-        android.graphics.Matrix matrix = new android.graphics.Matrix();
-        matrix.setRotate(START_ANGLE, cx, cy);
-        gradient.setLocalMatrix(matrix);
-        progressPaint.setShader(gradient);
-
-        // Draw tick marks (behind arcs)
-        drawTicks(canvas, cx, cy, radius + strokeWidth / 2, density);
-
-        // Draw track arc
+        // ── 1. Track arc (dasar putih transparan) ────
         canvas.drawArc(arcRect, START_ANGLE, SWEEP_ANGLE, false, trackPaint);
 
-        // Draw progress arc
-        float progressSweep = SWEEP_ANGLE * (moisturePercent / 100f);
-        canvas.drawArc(arcRect, START_ANGLE, progressSweep, false, progressPaint);
+        // ── 2. Progress ───────────────────────────────
+        float sweep = SWEEP_ANGLE * (displayPercent / 100f);
+        if (sweep > 0.5f) {
 
-        // Draw main % text
-        String percentText = (int) moisturePercent + " %";
-        float textY = cy - (textPaint.descent() + textPaint.ascent()) / 2 - 18 * density;
-        canvas.drawText(percentText, cx, textY, textPaint);
+            // Glow layer (wide, very transparent)
+            int[] gc = {
+                Color.parseColor("#00E8E6FF"),
+                Color.parseColor("#35E8E6FF"),
+                Color.parseColor("#00E8E6FF")
+            };
+            SweepGradient gg = new SweepGradient(cx, cy, gc, null);
+            Matrix gm = new Matrix();
+            gm.setRotate(START_ANGLE, cx, cy);
+            gg.setLocalMatrix(gm);
+            glowPaint.setShader(gg);
+            canvas.drawArc(arcRect, START_ANGLE, sweep, false, glowPaint);
 
-        // Draw label badge
-        float labelPadH = 20 * density;
-        float labelPadV = 6 * density;
-        float labelWidth = labelTextPaint.measureText(statusLabel) + labelPadH * 2;
-        float labelHeight = 28 * density;
-        float labelTop = cy + 12 * density;
-        float cornerRadius = labelHeight / 2;
+            // Progress gradient: white → light purple → primary purple
+            int[] pc = {
+                Color.parseColor("#FFFFFF"),
+                Color.parseColor("#D4D0F5"),
+                Color.parseColor("#B4AFEE")
+            };
+            SweepGradient pg = new SweepGradient(cx, cy, pc, null);
+            Matrix pm = new Matrix();
+            pm.setRotate(START_ANGLE, cx, cy);
+            pg.setLocalMatrix(pm);
+            progressPaint.setShader(pg);
+            canvas.drawArc(arcRect, START_ANGLE, sweep, false, progressPaint);
 
-        RectF labelRect = new RectF(cx - labelWidth / 2, labelTop,
-                cx + labelWidth / 2, labelTop + labelHeight);
-        canvas.drawRoundRect(labelRect, cornerRadius, cornerRadius, labelBgPaint);
-
-        float labelTextY = labelTop + labelHeight / 2
-                - (labelTextPaint.descent() + labelTextPaint.ascent()) / 2;
-        canvas.drawText(statusLabel, cx, labelTextY, labelTextPaint);
-    }
-
-    private void drawTicks(Canvas canvas, float cx, float cy, float outerRadius, float density) {
-        int numTicks = 30;
-        for (int i = 0; i <= numTicks; i++) {
-            double angle = Math.toRadians(START_ANGLE + (SWEEP_ANGLE * i / (double) numTicks));
-            float innerRadius = outerRadius - (i % 5 == 0 ? 14 * density : 8 * density);
-            float startX = (float) (cx + innerRadius * Math.cos(angle));
-            float startY = (float) (cy + innerRadius * Math.sin(angle));
-            float endX = (float) (cx + outerRadius * Math.cos(angle));
-            float endY = (float) (cy + outerRadius * Math.sin(angle));
-            canvas.drawLine(startX, startY, endX, endY, tickPaint);
+            // Glowing dot at the tip of progress arc
+            double endRad = Math.toRadians(START_ANGLE + sweep);
+            float dotX = cx + radius * (float) Math.cos(endRad);
+            float dotY = cy + radius * (float) Math.sin(endRad);
+            canvas.drawCircle(dotX, dotY, sw * 0.54f, dotPaint);
         }
+
+        // ── 3. Center text ────────────────────────────
+        String num = String.valueOf((int) displayPercent);
+        String unit = "%";
+
+        numberPaint.setTextAlign(Paint.Align.LEFT);
+        unitPaint.setTextAlign(Paint.Align.LEFT);
+
+        float numW = numberPaint.measureText(num);
+        float unitW = unitPaint.measureText(unit);
+        float totalW = numW + unitW + 4f * d;
+
+        float startX = cx - totalW / 2f;
+        float textY = cy - (numberPaint.descent() + numberPaint.ascent()) / 2f - 8f * d;
+
+        canvas.drawText(num, startX, textY, numberPaint);
+        // Align percentage right beside the number
+        canvas.drawText(unit, startX + numW + 4f * d, textY, unitPaint);
+
+        // ── 4. Status badge ───────────────────────────
+        float lw  = labelTextPaint.measureText(statusLabel) + 40f * d;
+        float lh  = 28f * d;
+        float lt  = cy + 26f * d;
+        RectF lr  = new RectF(cx - lw / 2f, lt, cx + lw / 2f, lt + lh);
+        canvas.drawRoundRect(lr, lh / 2f, lh / 2f, labelBgPaint);
+        float lty = lt + lh / 2f - (labelTextPaint.descent() + labelTextPaint.ascent()) / 2f;
+        canvas.drawText(statusLabel, cx, lty, labelTextPaint);
     }
+
+    // ── Public API ────────────────────────────────────
 
     public void setMoisturePercent(float percent) {
-        this.targetMoisturePercent = Math.max(0, Math.min(100, percent));
-        updateStatusLabel(targetMoisturePercent);
-        
-        // Mulai animasi
-        if (animator != null && animator.isRunning()) {
-            animator.cancel();
-        }
-        
-        animator = ValueAnimator.ofFloat(moisturePercent, targetMoisturePercent);
-        animator.setDuration(1500); // 1.5 detik
+        targetPercent = Math.max(0f, Math.min(100f, percent));
+        updateLabel(targetPercent);
+
+        if (animator != null && animator.isRunning()) animator.cancel();
+        animator = ValueAnimator.ofFloat(displayPercent, targetPercent);
+        animator.setDuration(1500);
         animator.setInterpolator(new DecelerateInterpolator());
-        animator.addUpdateListener(animation -> {
-            moisturePercent = (float) animation.getAnimatedValue();
-            updateStatusLabel(moisturePercent); // Tetap update label selagi animasi jalan
+        animator.addUpdateListener(a -> {
+            displayPercent = (float) a.getAnimatedValue();
+            updateLabel(displayPercent);
             invalidate();
         });
         animator.start();
     }
 
-    private void updateStatusLabel(float percent) {
-        if (percent < 30) {
-            statusLabel = "kering";
-            labelBgPaint.setColor(Color.parseColor("#FF6B6B")); // Merah soft
-            labelBgPaint.setShadowLayer(8f, 0f, 4f, Color.parseColor("#4DFF6B6B"));
-        } else if (percent < 65) {
-            statusLabel = "normal";
-            labelBgPaint.setColor(Color.parseColor("#4ECDC4")); // Tosca soft
-            labelBgPaint.setShadowLayer(8f, 0f, 4f, Color.parseColor("#4D4ECDC4"));
-        } else {
-            statusLabel = "basah";
-            labelBgPaint.setColor(Color.parseColor("#5C85D6")); // Biru laut soft
-            labelBgPaint.setShadowLayer(8f, 0f, 4f, Color.parseColor("#4D5C85D6"));
-        }
+    public float getMoisturePercent() {
+        return targetPercent;
     }
 
-    public float getMoisturePercent() {
-        return targetMoisturePercent;
+    private void updateLabel(float p) {
+        if      (p < 30f) statusLabel = "Kering";
+        else if (p < 65f) statusLabel = "Normal";
+        else              statusLabel = "Basah";
     }
 }
