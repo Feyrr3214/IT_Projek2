@@ -1,8 +1,9 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <color name="primary_purple">#9D4EDD</color> <!-- Tema Ungu Estetik -->
-    <color name="primary_purple_dark">#7B2CBF</color>
-    <color name="background_light">#F5F5FA</color>
+    <color name="primary_purple">#796DCF</color> <!-- Tema Ungu Estetik -->
+    <color name="primary_purple_dark">#6358B8</color>
+    <color name="primary_purple_light">#B4AFEE</color>
+    <color name="background_light">#E4E4E4</color>
     <color name="surface_white">#FFFFFF</color>
     <color name="text_dark">#1C1C1E</color>
     <color name="text_gray">#8E8E93</color>
