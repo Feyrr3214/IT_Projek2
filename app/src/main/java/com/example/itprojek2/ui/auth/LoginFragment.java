@@ -13,7 +13,6 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
 import com.example.itprojek2.R;
-import com.google.firebase.auth.FirebaseAuth;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
@@ -21,8 +20,6 @@ import com.google.firebase.database.FirebaseDatabase;
 import com.google.firebase.database.ValueEventListener;
 
 public class LoginFragment extends Fragment {
-
-    private FirebaseAuth mAuth;
     private DatabaseReference dbRef;
 
     @Nullable
@@ -35,7 +32,6 @@ public class LoginFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        mAuth = FirebaseAuth.getInstance();
         dbRef = FirebaseDatabase.getInstance().getReference("users");
 
         EditText etName = view.findViewById(R.id.etLoginName);
@@ -61,64 +57,55 @@ public class LoginFragment extends Fragment {
             btnLogin.setEnabled(false);
             Toast.makeText(getContext(), "Memeriksa akun...", Toast.LENGTH_SHORT).show();
 
-            // Buat email palsu dari nama (sama dengan saat registrasi)
-            String fakeEmail = name.toLowerCase().replaceAll("\\s+", "") + "@smartwater.app";
+            // Buat ID yang sama dengan saat daftar (hilangkan spasi, kecilkan huruf)
+            String usernameId = name.toLowerCase().replaceAll("\\s+", "");
 
-            // Login via Firebase Authentication (gratis - Spark Plan)
-            mAuth.signInWithEmailAndPassword(fakeEmail, password)
-                    .addOnCompleteListener(task -> {
-                        if (task.isSuccessful()) {
-                            String uid = mAuth.getCurrentUser().getUid();
+            // Cek langsung ke Realtime Database
+            dbRef.child(usernameId).addListenerForSingleValueEvent(new ValueEventListener() {
+                @Override
+                public void onDataChange(@NonNull DataSnapshot snapshot) {
+                    btnLogin.setEnabled(true);
 
-                            // Ambil data user dari Realtime Database
-                            dbRef.child(uid).addListenerForSingleValueEvent(new ValueEventListener() {
-                                @Override
-                                public void onDataChange(@NonNull DataSnapshot snapshot) {
-                                    btnLogin.setEnabled(true);
+                    if (snapshot.exists()) {
+                        String storedPassword = snapshot.child("password").getValue(String.class);
 
-                                    String storedName = snapshot.child("name").getValue(String.class);
-                                    String displayName = storedName != null ? storedName : name;
+                        if (storedPassword != null && storedPassword.equals(password)) {
+                            // Password benar
+                            String storedName = snapshot.child("name").getValue(String.class);
+                            String displayName = storedName != null ? storedName : name;
 
-                                    // Simpan sesi lokal
-                                    SharedPreferences prefs = requireActivity()
-                                            .getSharedPreferences("UserSession", Context.MODE_PRIVATE);
-                                    prefs.edit()
-                                            .putString("uid", uid)
-                                            .putString("name", displayName)
-                                            .apply();
+                            // Simpan sesi lokal
+                            SharedPreferences prefs = requireActivity()
+                                    .getSharedPreferences("UserSession", Context.MODE_PRIVATE);
+                            prefs.edit()
+                                    .putString("uid", usernameId) // Gunakan usernameId
+                                    .putString("name", displayName)
+                                    .apply();
 
-                                    Toast.makeText(getContext(),
-                                            "Login berhasil! Selamat datang, " + displayName + "!",
-                                            Toast.LENGTH_SHORT).show();
-                                    navController.navigate(R.id.action_login_to_main);
-                                }
-
-                                @Override
-                                public void onCancelled(@NonNull DatabaseError error) {
-                                    btnLogin.setEnabled(true);
-                                    Toast.makeText(getContext(),
-                                            "Gagal ambil data: " + error.getMessage(),
-                                            Toast.LENGTH_SHORT).show();
-                                }
-                            });
-
+                            Toast.makeText(getContext(),
+                                    "Login berhasil! Selamat datang, " + displayName + "!",
+                                    Toast.LENGTH_SHORT).show();
+                            navController.navigate(R.id.action_login_to_main);
                         } else {
-                            btnLogin.setEnabled(true);
-                            String errMsg = task.getException() != null
-                                    ? task.getException().getMessage() : "Error tidak diketahui";
-
-                            // Deteksi error spesifik
-                            if (errMsg != null && (errMsg.contains("no user record") || errMsg.contains("user-not-found"))) {
-                                etName.setError("Akun tidak ditemukan, silakan daftar dulu");
-                                Toast.makeText(getContext(), "Akun tidak ditemukan.", Toast.LENGTH_LONG).show();
-                            } else if (errMsg != null && (errMsg.contains("password is invalid") || errMsg.contains("wrong-password"))) {
-                                etPassword.setError("Password salah");
-                                Toast.makeText(getContext(), "Password yang kamu masukkan salah.", Toast.LENGTH_SHORT).show();
-                            } else {
-                                Toast.makeText(getContext(), "Login gagal: " + errMsg, Toast.LENGTH_LONG).show();
-                            }
+                            // Password salah
+                            etPassword.setError("Password salah");
+                            Toast.makeText(getContext(), "Password salah.", Toast.LENGTH_SHORT).show();
                         }
-                    });
+                    } else {
+                        // User tidak ditemukan
+                        etName.setError("Akun tidak ditemukan");
+                        Toast.makeText(getContext(), "Akun belum terdaftar.", Toast.LENGTH_LONG).show();
+                    }
+                }
+
+                @Override
+                public void onCancelled(@NonNull DatabaseError error) {
+                    btnLogin.setEnabled(true);
+                    Toast.makeText(getContext(),
+                            "Gagal login: " + error.getMessage(),
+                            Toast.LENGTH_SHORT).show();
+                }
+            });
         });
 
         // Link ke Register

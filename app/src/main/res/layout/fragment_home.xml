@@ -15,7 +15,9 @@
         android:paddingStart="24dp"
         android:paddingEnd="24dp"
         android:paddingTop="48dp"
-        android:paddingBottom="24dp">
+        android:paddingBottom="24dp"
+        android:elevation="8dp"
+        android:translationZ="8dp">
 
         <LinearLayout
             android:layout_width="match_parent"
@@ -121,29 +123,65 @@
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="16dp"
-                style="@style/CardStyle">
+                app:cardBackgroundColor="#00000000"
+                app:cardCornerRadius="28dp"
+                app:cardElevation="8dp"
+                app:strokeWidth="0dp">
 
-                <LinearLayout
+                <FrameLayout
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:orientation="vertical"
-                    android:padding="24dp"
-                    android:gravity="center_horizontal">
+                    android:background="@drawable/bg_card_moisture">
 
-                    <TextView
-                        android:layout_width="wrap_content"
+                    <com.example.itprojek2.ui.home.MoistureBubblesView
+                        android:layout_width="match_parent"
+                        android:layout_height="match_parent" />
+
+                    <LinearLayout
+                        android:layout_width="match_parent"
                         android:layout_height="wrap_content"
-                        android:text="Kelembaban Tanah"
-                        android:textSize="18sp"
-                        android:textStyle="bold"
-                        android:textColor="@color/text_dark" />
+                        android:orientation="vertical"
+                        android:gravity="center_horizontal">
 
+                    <!-- Header -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:paddingStart="20dp"
+                        android:paddingEnd="20dp"
+                        android:paddingTop="20dp"
+                        android:paddingBottom="4dp">
+
+                        <ImageView
+                            android:layout_width="20dp"
+                            android:layout_height="20dp"
+                            android:src="@drawable/ic_water_drop"
+                            android:tint="#FFFFFF" />
+
+                        <TextView
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:layout_marginStart="10dp"
+                            android:text="Kelembaban Tanah"
+                            android:textSize="15sp"
+                            android:textStyle="bold"
+                            android:textColor="#FFFFFF" />
+
+                    </LinearLayout>
+
+                    <!-- Arc Gauge -->
                     <com.example.itprojek2.ui.home.MoistureGaugeView
                         android:id="@+id/moistureGaugeView"
-                        android:layout_width="220dp"
-                        android:layout_height="220dp"
-                        android:layout_marginTop="16dp" />
+                        android:layout_width="260dp"
+                        android:layout_height="260dp"
+                        android:layout_marginTop="0dp"
+                        android:layout_marginBottom="20dp" />
+
                 </LinearLayout>
+                </FrameLayout>
             </com.google.android.material.card.MaterialCardView>
 
             <!-- ============================== -->
