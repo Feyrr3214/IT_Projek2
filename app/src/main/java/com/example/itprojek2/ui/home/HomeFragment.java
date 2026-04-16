@@ -209,7 +209,7 @@ public class HomeFragment extends Fragment {
 
                     // Update status online/offline
                     if (status.online) {
-                        binding.tvDeviceOnlineStatus.setText("ESP32: Online");
+                        binding.tvDeviceOnlineStatus.setText("Perangkat: Online");
                         binding.tvDeviceOnlineStatus.setTextColor(
                                 ContextCompat.getColor(requireContext(), R.color.success_green));
                         binding.viewDeviceOnlineDot.setBackgroundResource(
@@ -245,7 +245,7 @@ public class HomeFragment extends Fragment {
                         }
                     } else {
                         // ESP32 OFFLINE — reset semua ke kondisi awal
-                        binding.tvDeviceOnlineStatus.setText("ESP32: Offline");
+                        binding.tvDeviceOnlineStatus.setText("Perangkat: Offline");
                         binding.tvDeviceOnlineStatus.setTextColor(
                                 ContextCompat.getColor(requireContext(), R.color.danger_red));
                         binding.viewDeviceOnlineDot.setBackgroundResource(

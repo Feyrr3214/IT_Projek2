@@ -182,6 +182,62 @@ public class IrrigationController {
     }
 
     /**
+     * Simpan batas kelembaban ke Firebase.
+     * ESP32 akan membaca nilai ini dari node control/threshold.
+     *
+     * @param minValue Nilai minimal (pompa nyala jika kelembaban di bawah ini), 0-90
+     * @param maxValue Nilai maksimal (pompa berhenti jika kelembaban di atas ini), 10-100
+     * @param listener Callback hasil operasi
+     */
+    public void saveMoistureThreshold(int minValue, int maxValue, @Nullable OnCommandListener listener) {
+        java.util.Map<String, Object> threshold = new java.util.HashMap<>();
+        threshold.put("minMoisture", minValue);
+        threshold.put("maxMoisture", maxValue);
+
+        controlRef.child("threshold").setValue(threshold)
+                .addOnSuccessListener(unused -> {
+                    Log.d(TAG, "Threshold kelembaban disimpan: min=" + minValue + " max=" + maxValue);
+                    if (listener != null) listener.onSuccess();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Gagal simpan threshold: " + e.getMessage());
+                    if (listener != null) listener.onFailure(e.getMessage());
+                });
+    }
+
+    /**
+     * Baca batas kelembaban yang tersimpan dari Firebase.
+     * Default: min=30, max=70 jika belum pernah diatur.
+     */
+    public void loadMoistureThreshold(OnThresholdLoadListener listener) {
+        controlRef.child("threshold").addListenerForSingleValueEvent(new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                int min = 30; // Default
+                int max = 70; // Default
+                if (snapshot.exists()) {
+                    min = getIntSafe(snapshot, "minMoisture", 30);
+                    max = getIntSafe(snapshot, "maxMoisture", 70);
+                }
+                listener.onLoaded(min, max);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e(TAG, "Gagal baca threshold: " + error.getMessage());
+                listener.onLoaded(30, 70); // Fallback ke default
+            }
+        });
+    }
+
+    /**
+     * Callback saat threshold kelembaban berhasil dibaca dari Firebase
+     */
+    public interface OnThresholdLoadListener {
+        void onLoaded(int minMoisture, int maxMoisture);
+    }
+
+    /**
      * Ganti kredensial WiFi perangkat (Remote WiFi Setup)
      */
     public void updateWifi(String ssid, String pass, @Nullable OnCommandListener listener) {
