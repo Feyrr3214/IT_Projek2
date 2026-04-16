@@ -101,7 +101,7 @@
                         android:layout_height="wrap_content"
                         android:layout_marginStart="12dp"
                         android:layout_weight="1"
-                        android:text="ESP32: Offline"
+                        android:text="Perangkat: Offline"
                         android:textColor="@color/danger_red"
                         android:textSize="13sp"
                         android:textStyle="bold" />

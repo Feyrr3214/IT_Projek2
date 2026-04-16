@@ -1,11 +1,13 @@
 <?xml version="1.0" encoding="utf-8"?>
-<com.google.android.material.card.MaterialCardView xmlns:android="http://schemas.android.com/apk/res/android"
+<com.google.android.material.card.MaterialCardView
+    xmlns:android="http://schemas.android.com/apk/res/android"
     xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     app:cardCornerRadius="24dp"
-    app:cardElevation="8dp"
-    android:layout_margin="16dp">
+    app:cardElevation="16dp"
+    android:layout_margin="16dp"
+    app:cardBackgroundColor="@color/surface_white">
 
     <LinearLayout
         android:layout_width="match_parent"
@@ -19,83 +21,265 @@
             android:layout_height="wrap_content"
             android:gravity="center_vertical"
             android:orientation="horizontal"
-            android:layout_marginBottom="20dp">
+            android:layout_marginBottom="4dp">
 
             <ImageView
-                android:layout_width="48dp"
-                android:layout_height="48dp"
+                android:layout_width="44dp"
+                android:layout_height="44dp"
                 android:background="@drawable/shape_icon_circle_purple"
                 android:src="@drawable/ic_wifi"
                 android:tint="@color/primary_purple"
                 android:padding="10dp" />
 
             <LinearLayout
-                android:layout_width="wrap_content"
+                android:layout_width="0dp"
                 android:layout_height="wrap_content"
-                android:layout_marginStart="16dp"
+                android:layout_weight="1"
+                android:layout_marginStart="14dp"
                 android:orientation="vertical">
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Ganti WiFi"
+                    android:text="Ganti Jaringan WiFi"
                     android:textColor="@color/text_dark"
-                    android:textSize="18sp"
+                    android:textSize="17sp"
                     android:textStyle="bold" />
 
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Update Jaringan Alat"
+                    android:text="Pilih jaringan untuk alat"
                     android:textColor="@color/text_gray"
                     android:textSize="12sp" />
             </LinearLayout>
+
+            <!-- Tombol Scan/Refresh -->
+            <ImageView
+                android:id="@+id/btnScanWifi"
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_refresh"
+                android:tint="@color/primary_purple"
+                android:padding="4dp"
+                android:background="?attr/selectableItemBackgroundBorderless" />
         </LinearLayout>
 
-        <TextView
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:text="Pastikan nama (SSID) dan password sudah benar sebelum mengirim."
-            android:textColor="@color/text_gray"
-            android:textSize="12sp"
-            android:layout_marginBottom="16dp"
-            android:fontFamily="sans-serif-light" />
+        <!-- Divider -->
+        <View
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/background_light"
+            android:layout_marginBottom="12dp"
+            android:layout_marginTop="12dp" />
 
-        <!-- Input SSID -->
-        <com.google.android.material.textfield.TextInputLayout
-            android:id="@+id/tilSsid"
-            style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+        <!-- Status scanning -->
+        <LinearLayout
+            android:id="@+id/layoutScanning"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="12dp"
-            android:hint="Nama WiFi (SSID)"
-            app:boxCornerRadiusBottomEnd="16dp"
-            app:boxCornerRadiusBottomStart="16dp"
-            app:boxCornerRadiusTopEnd="16dp"
-            app:boxCornerRadiusTopStart="16dp"
-            app:startIconDrawable="@drawable/ic_wifi">
+            android:orientation="horizontal"
+            android:gravity="center"
+            android:padding="16dp"
+            android:visibility="visible">
 
-            <com.google.android.material.textfield.TextInputEditText
-                android:id="@+id/etSsid"
-                android:layout_width="match_parent"
+            <ProgressBar
+                android:layout_width="22dp"
+                android:layout_height="22dp"
+                android:layout_marginEnd="10dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
                 android:layout_height="wrap_content"
-                android:inputType="text" />
-        </com.google.android.material.textfield.TextInputLayout>
+                android:text="Memindai jaringan..."
+                android:textColor="@color/text_gray"
+                android:textSize="13sp" />
+        </LinearLayout>
 
-        <!-- Input Password -->
+        <!-- Daftar WiFi yang ditemukan (RecyclerView-like menggunakan ListView) -->
+        <ListView
+            android:id="@+id/listViewWifi"
+            android:layout_width="match_parent"
+            android:layout_height="220dp"
+            android:divider="@color/background_light"
+            android:dividerHeight="1dp"
+            android:scrollbars="vertical"
+            android:visibility="gone" />
+
+        <!-- Tidak ada jaringan -->
+        <LinearLayout
+            android:id="@+id/layoutNoWifi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:padding="16dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="48dp"
+                android:layout_height="48dp"
+                android:src="@drawable/ic_wifi"
+                android:tint="@color/text_gray"
+                android:alpha="0.4" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tidak ada jaringan ditemukan"
+                android:textColor="@color/text_gray"
+                android:textSize="13sp"
+                android:layout_marginTop="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Tap ikon refresh untuk pindai ulang"
+                android:textColor="@color/text_gray"
+                android:textSize="11sp"
+                android:alpha="0.6" />
+        </LinearLayout>
+
+        <!-- WiFi Mati -->
+        <LinearLayout
+            android:id="@+id/layoutWifiOff"
+            android:layout_width="match_parent"
+            android:layout_height="150dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_wifi"
+                android:tint="@color/danger_red" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="WiFi Belum Menyala"
+                android:textColor="@color/danger_red"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTurnOnWifi"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="16dp"
+                android:text="Nyalakan WiFi"
+                android:textColor="@color/surface_white"
+                app:backgroundTint="@color/primary_purple"
+                app:cornerRadius="12dp" />
+        </LinearLayout>
+
+        <!-- Lokasi Mati -->
+        <LinearLayout
+            android:id="@+id/layoutLocationOff"
+            android:layout_width="match_parent"
+            android:layout_height="150dp"
+            android:orientation="vertical"
+            android:gravity="center"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="36dp"
+                android:layout_height="36dp"
+                android:src="@drawable/ic_alert_triangle" 
+                android:tint="@color/danger_red" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Lokasi / GPS Belum Menyala"
+                android:textColor="@color/danger_red"
+                android:textSize="14sp"
+                android:textStyle="bold"
+                android:layout_marginTop="8dp" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Dibutuhkan Android untuk memindai WiFi"
+                android:textColor="@color/text_gray"
+                android:textSize="11sp"
+                android:alpha="0.8" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/btnTurnOnLocation"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:text="Nyalakan Lokasi"
+                android:textColor="@color/surface_white"
+                app:backgroundTint="@color/primary_purple"
+                app:cornerRadius="12dp" />
+        </LinearLayout>
+
+        <!-- Divider sebelum password -->
+        <View
+            android:id="@+id/dividerPassword"
+            android:layout_width="match_parent"
+            android:layout_height="1dp"
+            android:background="@color/background_light"
+            android:layout_marginBottom="12dp"
+            android:layout_marginTop="4dp"
+            android:visibility="gone" />
+
+        <!-- WiFi yang Dipilih -->
+        <LinearLayout
+            android:id="@+id/layoutSelectedWifi"
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="horizontal"
+            android:gravity="center_vertical"
+            android:background="@drawable/shape_badge_moisture_max"
+            android:padding="10dp"
+            android:layout_marginBottom="12dp"
+            android:visibility="gone">
+
+            <ImageView
+                android:layout_width="20dp"
+                android:layout_height="20dp"
+                android:src="@drawable/ic_wifi"
+                android:tint="@color/primary_purple" />
+
+            <TextView
+                android:id="@+id/tvSelectedSsid"
+                android:layout_width="0dp"
+                android:layout_height="wrap_content"
+                android:layout_weight="1"
+                android:layout_marginStart="10dp"
+                android:text="Nama WiFi"
+                android:textColor="@color/primary_purple"
+                android:textSize="13sp"
+                android:textStyle="bold" />
+
+            <TextView
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="Dipilih ✓"
+                android:textColor="@color/primary_purple"
+                android:textSize="11sp" />
+        </LinearLayout>
+
+        <!-- Input Password (muncul setelah pilih WiFi) -->
         <com.google.android.material.textfield.TextInputLayout
             android:id="@+id/tilPass"
             style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:layout_marginBottom="24dp"
+            android:layout_marginBottom="20dp"
             android:hint="Password WiFi"
             app:boxCornerRadiusBottomEnd="16dp"
             app:boxCornerRadiusBottomStart="16dp"
             app:boxCornerRadiusTopEnd="16dp"
             app:boxCornerRadiusTopStart="16dp"
             app:endIconMode="password_toggle"
-            app:startIconDrawable="@drawable/ic_password_dots">
+            app:startIconDrawable="@drawable/ic_password_dots"
+            android:visibility="gone">
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etPass"
@@ -104,29 +288,35 @@
                 android:inputType="textPassword" />
         </com.google.android.material.textfield.TextInputLayout>
 
-        <!-- Actions -->
+        <!-- Tombol Aksi -->
         <LinearLayout
             android:layout_width="match_parent"
             android:layout_height="wrap_content"
-            android:orientation="horizontal"
-            android:gravity="end">
+            android:orientation="horizontal">
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnCancel"
-                style="@style/Widget.MaterialComponents.Button.TextButton"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="BATAL"
-                android:textColor="@color/text_gray"
-                android:layout_marginEnd="8dp" />
+                style="@style/Widget.MaterialComponents.Button.OutlinedButton"
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginEnd="8dp"
+                android:text="Batal"
+                android:textColor="@color/primary_purple"
+                app:strokeColor="@color/primary_purple"
+                app:cornerRadius="12dp" />
 
             <com.google.android.material.button.MaterialButton
                 android:id="@+id/btnUpdate"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content"
-                android:text="UPDATE"
-                app:cornerRadius="12dp"
-                android:backgroundTint="@color/primary_purple" />
+                android:layout_width="0dp"
+                android:layout_height="48dp"
+                android:layout_weight="1"
+                android:layout_marginStart="8dp"
+                android:text="Kirim ke Alat"
+                android:textColor="@color/surface_white"
+                android:enabled="false"
+                app:backgroundTint="@color/primary_purple"
+                app:cornerRadius="12dp" />
         </LinearLayout>
 
     </LinearLayout>

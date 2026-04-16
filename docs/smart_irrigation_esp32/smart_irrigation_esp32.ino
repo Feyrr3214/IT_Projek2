@@ -89,10 +89,11 @@ String wifi_password = "YOUR_WIFI_PASSWORD";
 #define SOIL_THRESHOLD    30    // Mulai siram jika kelembaban < 30%
 #define SOIL_FULL         70    // Berhenti siram jika kelembaban > 70%
 #define MAX_PUMP_TIME     180   // Max pump duration: 3 minutes (detik)
-#define MOISTURE_UPDATE_INTERVAL 2000  // Update status ke Firebase setiap 2 detik
-#define LCD_UPDATE_INTERVAL      3000  // Update LCD setiap 3 detik
-#define FIREBASE_RETRY_INTERVAL  5000  // Retry Firebase setiap 5 detik
-#define NTP_SERVER               "pool.ntp.org"
+#define MOISTURE_UPDATE_INTERVAL   2000  // Update status moisture ke Firebase setiap 2 detik
+#define LCD_UPDATE_INTERVAL        3000  // Update LCD setiap 3 detik
+#define FIREBASE_CMD_INTERVAL       300  // ⚡ Baca perintah (pompa) dari Firebase setiap 300ms (CEPAT!)
+#define FIREBASE_STATUS_INTERVAL   2000  // Update status device ke Firebase setiap 2 detik
+#define NTP_SERVER                 "pool.ntp.org"
 
 // ============================================================
 // LCD 16x2 SETUP (I2C Address: 0x27 atau 0x3F)
@@ -122,10 +123,13 @@ struct SystemState {
   bool autoWatering;
   int soilMoisture;
   int sensorRaw;
+  int thresholdMin;    // Batas minimal (pompa nyala), default 30
+  int thresholdMax;    // Batas maksimal (pompa berhenti), default 70
   unsigned long pumpStartTime;
   unsigned long lastMoistureUpdate;
   unsigned long lastLcdUpdate;
-  unsigned long lastFirebaseUpdate;
+  unsigned long lastFirebaseCmdUpdate;   // Timer khusus baca perintah (cepat)
+  unsigned long lastFirebaseStatusUpdate; // Timer khusus update status (normal)
   String lastError;
   bool firebaseConnected;
   int failureCount;
@@ -139,10 +143,13 @@ SystemState state = {
   .autoWatering = true,
   .soilMoisture = 0,
   .sensorRaw = 0,
+  .thresholdMin = 30,  // Default sama dengan SOIL_THRESHOLD
+  .thresholdMax = 70,  // Default sama dengan SOIL_FULL
   .pumpStartTime = 0,
   .lastMoistureUpdate = 0,
   .lastLcdUpdate = 0,
-  .lastFirebaseUpdate = 0,
+  .lastFirebaseCmdUpdate = 0,
+  .lastFirebaseStatusUpdate = 0,
   .lastError = "",
   .firebaseConnected = false,
   .failureCount = 0,
@@ -189,7 +196,8 @@ void setup() {
 
   state.lastMoistureUpdate = millis();
   state.lastLcdUpdate = millis();
-  state.lastFirebaseUpdate = millis();
+  state.lastFirebaseCmdUpdate = millis();
+  state.lastFirebaseStatusUpdate = millis();
 
   Serial.println("[SETUP] Initialization complete!\n");
 }
@@ -216,24 +224,25 @@ void loop() {
 
   readSoilMoisture();
 
-  if (now - state.lastFirebaseUpdate >= FIREBASE_RETRY_INTERVAL) {
+  // ⚡ Baca perintah dari Firebase setiap 300ms => respons nyaris instan!
+  if (now - state.lastFirebaseCmdUpdate >= FIREBASE_CMD_INTERVAL) {
     readFirebaseCommands();
-    state.lastFirebaseUpdate = now;
+    state.lastFirebaseCmdUpdate = now;
   }
 
   executeControlLogic();
 
-  if (now - state.lastMoistureUpdate >= MOISTURE_UPDATE_INTERVAL) {
+  // Update status kelembaban & pompa ke Firebase setiap 2 detik
+  if (now - state.lastFirebaseStatusUpdate >= FIREBASE_STATUS_INTERVAL) {
     updateFirebaseStatus();
-    state.lastMoistureUpdate = now;
+    state.lastFirebaseStatusUpdate = now;
   }
 
   if (now - state.lastLcdUpdate >= LCD_UPDATE_INTERVAL) {
     updateLCDDisplay();
     state.lastLcdUpdate = now;
   }
-
-  delay(100);
+  // ⚡ Tidak ada delay() di sini agar loop bisa seresponsif mungkin!
 }
 
 // ============================================================
@@ -382,6 +391,15 @@ void readFirebaseCommands() {
   if (Firebase.getBool(firebaseData, controlPath + "/autoWatering")) {
     state.autoWatering = firebaseData.boolData();
   }
+  // ⚡ Baca threshold min/max dari Firebase (diatur user via Android)
+  if (Firebase.getInt(firebaseData, controlPath + "/threshold/minMoisture")) {
+    int newMin = firebaseData.intData();
+    if (newMin >= 0 && newMin <= 90) state.thresholdMin = newMin;
+  }
+  if (Firebase.getInt(firebaseData, controlPath + "/threshold/maxMoisture")) {
+    int newMax = firebaseData.intData();
+    if (newMax >= 10 && newMax <= 100) state.thresholdMax = newMax;
+  }
   if (Firebase.getString(firebaseData, controlPath + "/lcdMessage")) {
     String newMsg = firebaseData.stringData();
     if (newMsg.length() > 0) displayCustomLCDMessage(newMsg);
@@ -413,9 +431,10 @@ void executeControlLogic() {
   if (state.manualPump) {
     shouldPumpRun = true;
   } else if (state.autoWatering) {
-    if (state.soilMoisture < SOIL_THRESHOLD) shouldPumpRun = true;
-    else if (state.soilMoisture > SOIL_FULL) shouldPumpRun = false;
-    else shouldPumpRun = state.pumpRunning; // Maintain state if in between
+    // Gunakan threshold yang diatur user, bukan nilai hardcoded!
+    if (state.soilMoisture < state.thresholdMin) shouldPumpRun = true;
+    else if (state.soilMoisture > state.thresholdMax) shouldPumpRun = false;
+    else shouldPumpRun = state.pumpRunning; // Pertahankan state jika di tengah-tengah
   }
 
   if (shouldPumpRun && !state.pumpRunning) startPump();
