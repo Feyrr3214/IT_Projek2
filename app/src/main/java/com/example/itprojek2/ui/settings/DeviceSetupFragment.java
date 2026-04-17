@@ -59,8 +59,6 @@ public class DeviceSetupFragment extends Fragment {
     private Thread readThread;
     private volatile boolean keepReading = false;
 
-    private String selectedWifiSsid = "";
-
     // UI Pemindaian Modern
     private android.app.AlertDialog dialogBluetooth;
     private BluetoothAdapterList bluetoothAdapterList;
@@ -157,114 +155,9 @@ public class DeviceSetupFragment extends Fragment {
             if (isConnected) disconnectBluetooth();
             else checkPermissionsAndScan();
         });
-        binding.btnTurnOnWifi.setOnClickListener(v -> startActivity(new Intent(android.provider.Settings.ACTION_WIFI_SETTINGS)));
-        binding.btnTurnOnLocation.setOnClickListener(v -> startActivity(new Intent(android.provider.Settings.ACTION_LOCATION_SOURCE_SETTINGS)));
         binding.btnSendWifi.setOnClickListener(v -> sendWifiCredentials());
-        binding.btnScanWifi.setOnClickListener(v -> scanWifiNetwork());
 
         updateUiState();
-    }
-
-    private void scanWifiNetwork() {
-        binding.layoutSelectedWifi.setVisibility(View.GONE);
-        binding.cardPassword.setVisibility(View.GONE);
-        binding.btnSendWifi.setEnabled(false);
-
-        binding.layoutScanning.setVisibility(View.VISIBLE);
-        binding.listViewWifi.setVisibility(View.GONE);
-        binding.layoutNoWifi.setVisibility(View.GONE);
-        binding.layoutWifiOff.setVisibility(View.GONE);
-        binding.layoutLocationOff.setVisibility(View.GONE);
-
-        if (ContextCompat.checkSelfPermission(requireContext(), Manifest.permission.ACCESS_FINE_LOCATION) != PackageManager.PERMISSION_GRANTED) {
-            requestPermissionsLauncher.launch(new String[]{Manifest.permission.ACCESS_FINE_LOCATION});
-            binding.layoutScanning.setVisibility(View.GONE);
-            Toast.makeText(getContext(), "Izin lokasi diperlukan untuk memindai WiFi", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        android.net.wifi.WifiManager wifiManager = (android.net.wifi.WifiManager) requireContext().getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        if (wifiManager == null) {
-            binding.layoutScanning.setVisibility(View.GONE);
-            binding.layoutNoWifi.setVisibility(View.VISIBLE);
-            return;
-        }
-
-        if(!wifiManager.isWifiEnabled()) {
-            binding.layoutScanning.setVisibility(View.GONE);
-            binding.layoutNoWifi.setVisibility(View.GONE);
-            binding.listViewWifi.setVisibility(View.GONE);
-            binding.layoutLocationOff.setVisibility(View.GONE);
-            binding.layoutWifiOff.setVisibility(View.VISIBLE);
-            return;
-        } else {
-            binding.layoutWifiOff.setVisibility(View.GONE);
-        }
-
-        android.location.LocationManager locationManager = (android.location.LocationManager) requireContext().getSystemService(Context.LOCATION_SERVICE);
-        boolean isLocationEnabled = locationManager != null && (locationManager.isProviderEnabled(android.location.LocationManager.GPS_PROVIDER) || locationManager.isProviderEnabled(android.location.LocationManager.NETWORK_PROVIDER));
-        if (!isLocationEnabled) {
-            binding.layoutScanning.setVisibility(View.GONE);
-            binding.layoutNoWifi.setVisibility(View.GONE);
-            binding.listViewWifi.setVisibility(View.GONE);
-            binding.layoutWifiOff.setVisibility(View.GONE);
-            binding.layoutLocationOff.setVisibility(View.VISIBLE);
-            return;
-        } else {
-            binding.layoutLocationOff.setVisibility(View.GONE);
-        }
-
-        try {
-            wifiManager.startScan();
-        } catch (Exception e) {
-            // Ignore StartScan exception if security restricts it
-        }
-
-        new Handler(Looper.getMainLooper()).postDelayed(() -> {
-            try {
-                java.util.List<android.net.wifi.ScanResult> results = wifiManager.getScanResults();
-                java.util.List<String> ssidList = new java.util.ArrayList<>();
-                
-                if (results != null) {
-                    for (android.net.wifi.ScanResult result : results) {
-                        if (result.SSID != null && !result.SSID.isEmpty() && !ssidList.contains(result.SSID)) {
-                            ssidList.add(result.SSID);
-                        }
-                    }
-                }
-                
-                binding.layoutScanning.setVisibility(View.GONE);
-                
-                if (ssidList.isEmpty()) {
-                    binding.layoutNoWifi.setVisibility(View.VISIBLE);
-                } else {
-                    if (isAdded() && getContext() != null) {
-                        binding.listViewWifi.setVisibility(View.VISIBLE);
-                        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<>(requireContext(), android.R.layout.simple_list_item_1, ssidList);
-                        binding.listViewWifi.setAdapter(adapter);
-                        
-                        binding.listViewWifi.setOnItemClickListener((parent, v, position, id) -> {
-                            selectedWifiSsid = (String) parent.getItemAtPosition(position);
-                            
-                            binding.layoutScanning.setVisibility(View.GONE);
-                            binding.listViewWifi.setVisibility(View.GONE);
-                            binding.layoutNoWifi.setVisibility(View.GONE);
-                            
-                            binding.layoutSelectedWifi.setVisibility(View.VISIBLE);
-                            binding.cardPassword.setVisibility(View.VISIBLE);
-                            
-                            binding.tvSelectedSsid.setText(selectedWifiSsid);
-                            binding.btnSendWifi.setEnabled(true);
-                            binding.etPassword.requestFocus();
-                        });
-                    }
-                }
-            } catch (Exception e) {
-                binding.layoutScanning.setVisibility(View.GONE);
-                binding.layoutNoWifi.setVisibility(View.VISIBLE);
-                Toast.makeText(getContext(), "Aktifkan GPS/Lokasi HP untuk memindai WiFi", Toast.LENGTH_SHORT).show();
-            }
-        }, 1000);
     }
 
     private boolean ActivityCompatCheck(String permission) {
@@ -444,8 +337,19 @@ public class DeviceSetupFragment extends Fragment {
                 }
 
                 if(!ActivityCompatCheck(Manifest.permission.BLUETOOTH_CONNECT)) return;
-                btSocket = espDevice.createRfcommSocketToServiceRecord(BT_UUID);
-                btSocket.connect();
+                try {
+                    btSocket = espDevice.createRfcommSocketToServiceRecord(BT_UUID);
+                    btSocket.connect();
+                } catch (IOException e) {
+                    // Fallback using reflection (often needed for ESP32/microcontrollers)
+                    try {
+                        java.lang.reflect.Method m = espDevice.getClass().getMethod("createRfcommSocket", new Class[]{int.class});
+                        btSocket = (BluetoothSocket) m.invoke(espDevice, 1);
+                        btSocket.connect();
+                    } catch (Exception e2) {
+                        throw new IOException("Fallback connection failed", e2);
+                    }
+                }
 
                 outputStream = btSocket.getOutputStream();
                 inputStream = btSocket.getInputStream();
@@ -513,10 +417,10 @@ public class DeviceSetupFragment extends Fragment {
     }
 
     private void sendWifiCredentials() {
-        String ssid = selectedWifiSsid.trim();
+        String ssid = binding.etSsid.getText().toString().trim();
         String pass = binding.etPassword.getText().toString().trim();
         if (ssid.isEmpty()) {
-            Toast.makeText(getContext(), "Pilih jaringan dari daftar scan terlebih dahulu", Toast.LENGTH_SHORT).show();
+            Toast.makeText(getContext(), "Masukkan nama jaringan WiFi terlebih dahulu", Toast.LENGTH_SHORT).show();
             return;
         }
         if (!isConnected || outputStream == null) return;
@@ -547,11 +451,8 @@ public class DeviceSetupFragment extends Fragment {
             binding.btnConnect.setText("Putuskan Koneksi");
             binding.btnConnect.setEnabled(true);
             binding.layoutStep2.setVisibility(View.VISIBLE);
-            binding.btnSendWifi.setEnabled(!selectedWifiSsid.isEmpty());
+            binding.btnSendWifi.setEnabled(true);
             binding.btnSendWifi.setText("Kirim ke Alat");
-            if (selectedWifiSsid.isEmpty()) {
-                scanWifiNetwork(); // Mulai scan otomatis saat step 2 kebuka
-            }
         } else {
             binding.tvBluetoothStatus.setText("Belum Terhubung");
             binding.tvBluetoothStatus.setTextColor(ContextCompat.getColor(requireContext(), R.color.danger_red));
