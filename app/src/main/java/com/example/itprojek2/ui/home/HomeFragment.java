@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment;
 
 import com.example.itprojek2.R;
 import com.example.itprojek2.controller.IrrigationController;
+import com.example.itprojek2.controller.ManajerNotifikasi;
 import com.example.itprojek2.databinding.FragmentHomeBinding;
 import androidx.navigation.Navigation;
 
@@ -20,6 +21,7 @@ public class HomeFragment extends Fragment {
 
     private FragmentHomeBinding binding;
     private IrrigationController controller;
+    private ManajerNotifikasi manajerNotifikasi;
 
     // Apakah pompa sedang dalam mode manual aktif (dari sisi Android)
     private boolean isManualPumpOn = false;
@@ -27,7 +29,12 @@ public class HomeFragment extends Fragment {
     // Mencegah infinite loop pada switch listener
     private boolean isAutoSwitchProgrammatic = false;
 
+    // Batas kelembaban yang dimuat dari Firebase (untuk cek notifikasi)
+    private int batasMin = 30;
+    private int batasMax = 70;
+
     private static final String DEVICE_ID = "esp32_01";
+    private static final int KODE_IZIN_NOTIFIKASI = 200;
 
     @Nullable
     @Override
@@ -44,6 +51,26 @@ public class HomeFragment extends Fragment {
 
         // Inisialisasi controller Firebase
         controller = new IrrigationController(DEVICE_ID);
+
+        // Inisialisasi manajer notifikasi
+        manajerNotifikasi = new ManajerNotifikasi(requireContext());
+
+        // Minta izin notifikasi (Android 13+/API 33+)
+        if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
+            if (androidx.core.content.ContextCompat.checkSelfPermission(requireContext(),
+                    android.Manifest.permission.POST_NOTIFICATIONS)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+                requestPermissions(
+                        new String[]{android.Manifest.permission.POST_NOTIFICATIONS},
+                        KODE_IZIN_NOTIFIKASI);
+            }
+        }
+
+        // Load batas kelembaban dari Firebase untuk cek notifikasi
+        controller.loadMoistureThreshold((min, max) -> {
+            batasMin = min;
+            batasMax = max;
+        });
 
         // Inisialisasi awal UI sesuai state default di XML (Otomatis: OFF)
         updateAutoWateringUI(false);
@@ -217,6 +244,13 @@ public class HomeFragment extends Fragment {
 
                         // Update gauge kelembaban hanya jika online
                         binding.moistureGaugeView.setMoisturePercent(status.moisture);
+
+                        // ════ CEK NOTIFIKASI KELEMBABAN ════
+                        // Kirim notif ke HP jika kelembaban di luar rentang normal
+                        if (manajerNotifikasi != null) {
+                            manajerNotifikasi.cekDanKirimNotifikasi(
+                                    status.moisture, batasMin, batasMax);
+                        }
 
                         // Update status pompa
                         if (status.pumpRunning) {

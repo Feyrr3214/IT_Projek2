@@ -1,470 +1,209 @@
 package com.example.itprojek2.controller;
 
-import android.util.Log;
-
-import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
-
-import com.google.firebase.database.DataSnapshot;
-import com.google.firebase.database.DatabaseError;
 import com.google.firebase.database.DatabaseReference;
 import com.google.firebase.database.FirebaseDatabase;
-import com.google.firebase.database.ValueEventListener;
 
 /**
- * IrrigationController — Controller untuk mengirim perintah ke ESP32
- * melalui Firebase Realtime Database.
+ * IrrigationController — Pintu masuk utama untuk semua fitur kontrol irigasi.
  *
- * Struktur Firebase:
- * devices/
- *   esp32_01/
+ * File ini adalah FACADE (pembungkus). Semua logika sudah dipecah ke file terpisah
+ * dengan nama Bahasa Indonesia agar lebih mudah dicari:
+ *
+ *   ┌────────────────────────────────────────────────────────────────────┐
+ *   │  File                    │ Tanggung Jawab                         │
+ *   ├────────────────────────────────────────────────────────────────────┤
+ *   │  KontrolPompa.java       │ Nyalakan/matikan pompa manual & otomatis│
+ *   │  KontrolLcd.java         │ Kirim/hapus pesan ke layar LCD ESP32   │
+ *   │  KontrolKelembaban.java  │ Simpan/baca batas kelembaban tanah     │
+ *   │  KontrolJadwal.java      │ Simpan/baca jadwal penyiraman harian   │
+ *   │  PendengarStatus.java    │ Listener status real-time dari ESP32   │
+ *   │  StatusPerangkat.java    │ Model data status perangkat            │
+ *   │  KallbackKontrol.java    │ Semua interface/callback               │
+ *   └────────────────────────────────────────────────────────────────────┘
+ *
+ * Struktur Firebase yang digunakan:
+ *   devices/{deviceId}/
  *     control/
- *       manualPump: boolean
- *       autoWatering: boolean
- *       lcdMessage: String (maks 16 karakter per baris, format "baris1|baris2")
+ *       manualPump   : boolean
+ *       autoWatering : boolean
+ *       lcdMessage   : String ("baris1|baris2")
+ *       threshold/   : { minMoisture, maxMoisture }
+ *       schedule/    : { enabled, hour, minute, duration, time }
+ *       newWifi/     : { ssid, pass }
  *     status/
- *       pumpRunning: boolean
- *       moisture: int (0-100)
- *       lastWatered: String
- *       lastDuration: int (detik)
- *       online: boolean
+ *       pumpRunning  : boolean
+ *       moisture     : int (0-100%)
+ *       lastWatered  : String
+ *       lastDuration : int (detik)
+ *       online       : boolean
+ *       lastPing     : long
  */
 public class IrrigationController {
 
-    private static final String TAG = "IrrigationCtrl";
-    private static final int LCD_MAX_CHARS = 16; // LCD 16x2
+    private final DatabaseReference refKontrol;
+    private final DatabaseReference refPerangkat;
 
-    private final DatabaseReference controlRef;
-    private final DatabaseReference statusRef;
-    private ValueEventListener statusListener;
-
-    private android.os.Handler heartbeatHandler;
-    private Runnable heartbeatRunnable;
-    private DeviceStatus latestStatus;
-    
-    private long serverTimeOffset = 0L;
+    // Sub-kontroler dengan nama Bahasa Indonesia
+    private final KontrolPompa      kontrolPompa;
+    private final KontrolLcd        kontrolLcd;
+    private final KontrolKelembaban kontrolKelembaban;
+    private final KontrolJadwal     kontrolJadwal;
+    private final PendengarStatus   pendengarStatus;
 
     /**
-     * Buat controller baru untuk device tertentu.
+     * Buat instance controller untuk perangkat tertentu.
      *
-     * @param deviceId ID perangkat ESP32 (contoh: "esp32_01")
+     * @param idPerangkat ID perangkat ESP32 di Firebase, contoh: "esp32_01"
      */
-    public IrrigationController(String deviceId) {
-        DatabaseReference rootRef = FirebaseDatabase.getInstance().getReference();
-        controlRef = rootRef.child("devices").child(deviceId).child("control");
-        statusRef = rootRef.child("devices").child(deviceId).child("status");
+    public IrrigationController(String idPerangkat) {
+        DatabaseReference refRoot = FirebaseDatabase.getInstance().getReference();
+        refPerangkat = refRoot.child("devices").child(idPerangkat);
+        refKontrol   = refPerangkat.child("control");
 
-        // Selalu clear lcdMessage saat app start agar pesan lama/stale tidak terbawa
-        // (Sebelumnya Android nulis pesan operasional ke lcdMessage, sekarang sudah tidak lagi)
-        controlRef.child("lcdMessage").setValue("")
-                .addOnSuccessListener(unused -> Log.d(TAG, "lcdMessage di-clear saat startup"))
-                .addOnFailureListener(e -> Log.e(TAG, "Gagal clear lcdMessage: " + e.getMessage()));
+        // Inisialisasi semua sub-kontroler
+        kontrolPompa      = new KontrolPompa(refKontrol);
+        kontrolLcd        = new KontrolLcd(refKontrol);
+        kontrolKelembaban = new KontrolKelembaban(refKontrol);
+        kontrolJadwal     = new KontrolJadwal(refKontrol);
+        pendengarStatus   = new PendengarStatus(refPerangkat);
 
-        // Inisialisasi default values lainnya jika belum ada
-        controlRef.child("manualPump").addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                if (!snapshot.exists()) {
-                    controlRef.child("manualPump").setValue(false);
-                    controlRef.child("autoWatering").setValue(false);
-                    Log.d(TAG, "Inisialisasi default control values");
+        // Bersihkan pesan LCD lama saat app dibuka
+        kontrolLcd.hapusPesan();
+
+        // Inisialisasi default nilai Firebase jika node belum ada
+        refKontrol.child("manualPump").addListenerForSingleValueEvent(
+            new com.google.firebase.database.ValueEventListener() {
+                @Override
+                public void onDataChange(com.google.firebase.database.DataSnapshot snapshot) {
+                    if (!snapshot.exists()) {
+                        refKontrol.child("manualPump").setValue(false);
+                        refKontrol.child("autoWatering").setValue(false);
+                    }
                 }
+                @Override
+                public void onCancelled(com.google.firebase.database.DatabaseError error) {}
             }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Gagal cek data awal: " + error.getMessage());
-            }
-        });
-
-        // Sinkronisasi waktu HP dengan Server Firebase biar nggak kena bug beda jam (clock drift)
-        DatabaseReference offsetRef = FirebaseDatabase.getInstance().getReference(".info/serverTimeOffset");
-        offsetRef.addValueEventListener(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                if (snapshot.exists() && snapshot.getValue() != null) {
-                    serverTimeOffset = snapshot.getValue(Long.class);
-                }
-            }
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {}
-        });
+        );
     }
 
-    // ========================================
-    // KONTROL POMPA
-    // ========================================
+    // ═══════════════════════════════════════════════════
+    //  POMPA  →  KontrolPompa.java
+    // ═══════════════════════════════════════════════════
 
-    /**
-     * Nyalakan pompa manual — notifikasi LCD ditangani langsung di ESP32
-     */
+    /** Nyalakan pompa secara manual */
     public void startManualPump(@Nullable OnCommandListener listener) {
-        controlRef.child("manualPump").setValue(true)
-                .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Pompa manual DINYALAKAN");
-                    if (listener != null) listener.onSuccess();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal nyalakan pompa: " + e.getMessage());
-                    if (listener != null) listener.onFailure(e.getMessage());
-                });
+        kontrolPompa.nyalakanPompa(listener);
     }
 
-    /**
-     * Matikan pompa manual — notifikasi LCD ditangani langsung di ESP32
-     */
+    /** Matikan pompa yang sedang menyala */
     public void stopManualPump(@Nullable OnCommandListener listener) {
-        controlRef.child("manualPump").setValue(false)
-                .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Pompa manual DIMATIKAN");
-                    if (listener != null) listener.onSuccess();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal matikan pompa: " + e.getMessage());
-                    if (listener != null) listener.onFailure(e.getMessage());
-                });
+        kontrolPompa.matikanPompa(listener);
     }
 
-    /**
-     * Atur mode penyiraman otomatis — notifikasi LCD ditangani langsung di ESP32
-     */
+    /** Aktifkan/nonaktifkan mode penyiraman otomatis berbasis kelembaban */
     public void setAutoWatering(boolean enabled, @Nullable OnCommandListener listener) {
-        controlRef.child("autoWatering").setValue(enabled)
-                .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Auto watering: " + (enabled ? "AKTIF" : "NONAKTIF"));
-                    if (listener != null) listener.onSuccess();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal atur auto watering: " + e.getMessage());
-                    if (listener != null) listener.onFailure(e.getMessage());
-                });
+        kontrolPompa.aturPenyiramanOtomatis(enabled, listener);
     }
 
-    // ========================================
-    // KONTROL LCD
-    // ========================================
+    // ═══════════════════════════════════════════════════
+    //  LCD  →  KontrolLcd.java
+    // ═══════════════════════════════════════════════════
 
-    /**
-     * Kirim pesan 2 baris ke LCD 16x2.
-     * Setiap baris dibatasi 16 karakter. Format disimpan sebagai "baris1|baris2".
-     *
-     * @param line1 Teks baris pertama (maks 16 karakter)
-     * @param line2 Teks baris kedua (maks 16 karakter)
-     */
+    /** Kirim pesan 2 baris ke LCD ESP32 */
     public void setLcdMessage(String line1, String line2) {
-        String safeL1 = truncateLcd(line1);
-        String safeL2 = truncateLcd(line2);
-        String combined = safeL1 + "|" + safeL2;
-
-        controlRef.child("lcdMessage").setValue(combined)
-                .addOnSuccessListener(unused ->
-                        Log.d(TAG, "LCD message terkirim: " + combined))
-                .addOnFailureListener(e ->
-                        Log.e(TAG, "Gagal kirim LCD message: " + e.getMessage()));
+        kontrolLcd.kirimPesan(line1, line2);
     }
 
-    /**
-     * Kirim pesan 1 baris ke LCD (baris kedua kosong).
-     */
+    /** Kirim pesan 1 baris ke LCD ESP32 */
     public void setLcdMessage(String line1) {
-        setLcdMessage(line1, "");
+        kontrolLcd.kirimPesan(line1);
     }
 
-    /**
-     * Hapus pesan custom dari LCD — ESP32 akan kembali ke tampilan status normal.
-     */
+    /** Hapus pesan LCD → ESP32 kembali ke tampilan status normal */
     public void clearLcdMessage() {
-        controlRef.child("lcdMessage").setValue("")
-                .addOnSuccessListener(unused ->
-                        Log.d(TAG, "LCD message dihapus"))
-                .addOnFailureListener(e ->
-                        Log.e(TAG, "Gagal hapus LCD message: " + e.getMessage()));
+        kontrolLcd.hapusPesan();
     }
 
-    /**
-     * Simpan batas kelembaban ke Firebase.
-     * ESP32 akan membaca nilai ini dari node control/threshold.
-     *
-     * @param minValue Nilai minimal (pompa nyala jika kelembaban di bawah ini), 0-90
-     * @param maxValue Nilai maksimal (pompa berhenti jika kelembaban di atas ini), 10-100
-     * @param listener Callback hasil operasi
-     */
-    public void saveMoistureThreshold(int minValue, int maxValue, @Nullable OnCommandListener listener) {
-        java.util.Map<String, Object> threshold = new java.util.HashMap<>();
-        threshold.put("minMoisture", minValue);
-        threshold.put("maxMoisture", maxValue);
+    // ═══════════════════════════════════════════════════
+    //  BATAS KELEMBABAN  →  KontrolKelembaban.java
+    // ═══════════════════════════════════════════════════
 
-        controlRef.child("threshold").setValue(threshold)
-                .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Threshold kelembaban disimpan: min=" + minValue + " max=" + maxValue);
-                    if (listener != null) listener.onSuccess();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal simpan threshold: " + e.getMessage());
-                    if (listener != null) listener.onFailure(e.getMessage());
-                });
+    /** Simpan batas kelembaban ke Firebase */
+    public void saveMoistureThreshold(int minValue, int maxValue,
+                                      @Nullable OnCommandListener listener) {
+        kontrolKelembaban.simpanBatas(minValue, maxValue, listener);
     }
 
-    /**
-     * Baca batas kelembaban yang tersimpan dari Firebase.
-     * Default: min=30, max=70 jika belum pernah diatur.
-     */
+    /** Baca batas kelembaban dari Firebase */
     public void loadMoistureThreshold(OnThresholdLoadListener listener) {
-        controlRef.child("threshold").addListenerForSingleValueEvent(new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                int min = 30; // Default
-                int max = 70; // Default
-                if (snapshot.exists()) {
-                    min = getIntSafe(snapshot, "minMoisture", 30);
-                    max = getIntSafe(snapshot, "maxMoisture", 70);
-                }
-                listener.onLoaded(min, max);
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Gagal baca threshold: " + error.getMessage());
-                listener.onLoaded(30, 70); // Fallback ke default
-            }
-        });
+        kontrolKelembaban.bacaBatas(listener::onLoaded);
     }
 
-    /**
-     * Callback saat threshold kelembaban berhasil dibaca dari Firebase
-     */
-    public interface OnThresholdLoadListener {
-        void onLoaded(int minMoisture, int maxMoisture);
+    // ═══════════════════════════════════════════════════
+    //  JADWAL PENYIRAMAN  →  KontrolJadwal.java
+    // ═══════════════════════════════════════════════════
+
+    /** Simpan jadwal penyiraman ke Firebase */
+    public void saveSchedule(int hour, int minute, int durationSec, boolean enabled,
+                             @Nullable OnCommandListener listener) {
+        kontrolJadwal.simpanJadwal(hour, minute, durationSec, enabled, listener);
     }
 
-    /**
-     * Ganti kredensial WiFi perangkat (Remote WiFi Setup)
-     */
+    /** Baca jadwal penyiraman dari Firebase */
+    public void loadSchedule(OnScheduleLoadListener listener) {
+        kontrolJadwal.bacaJadwal(listener::onLoaded);
+    }
+
+    // ═══════════════════════════════════════════════════
+    //  WIFI  →  (langsung, sederhana)
+    // ═══════════════════════════════════════════════════
+
+    /** Kirim perintah ganti WiFi ESP32 ke Firebase */
     public void updateWifi(String ssid, String pass, @Nullable OnCommandListener listener) {
         java.util.Map<String, Object> wifiData = new java.util.HashMap<>();
         wifiData.put("ssid", ssid);
         wifiData.put("pass", pass);
-
-        controlRef.child("newWifi").setValue(wifiData)
-                .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Permintaan ganti WiFi terkirim: " + ssid);
-                    if (listener != null) listener.onSuccess();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal kirim permintaan WiFi: " + e.getMessage());
-                    if (listener != null) listener.onFailure(e.getMessage());
-                });
+        refKontrol.child("newWifi").setValue(wifiData)
+                .addOnSuccessListener(unused -> { if (listener != null) listener.onSuccess(); })
+                .addOnFailureListener(e -> { if (listener != null) listener.onFailure(e.getMessage()); });
     }
 
-    /**
-     * Potong teks agar tidak melebihi 16 karakter LCD
-     */
-    private String truncateLcd(String text) {
-        if (text == null) return "";
-        return text.length() > LCD_MAX_CHARS ? text.substring(0, LCD_MAX_CHARS) : text;
-    }
+    // ═══════════════════════════════════════════════════
+    //  STATUS REAL-TIME  →  PendengarStatus.java
+    // ═══════════════════════════════════════════════════
 
-    // ========================================
-    // LISTENER STATUS DARI ESP32
-    // ========================================
-
-    /**
-     * Mulai mendengarkan perubahan status dari ESP32 secara realtime.
-     */
+    /** Mulai dengarkan status ESP32 secara real-time */
     public void listenToStatus(OnStatusUpdateListener listener) {
-        stopListening(); // Hapus listener lama kalau ada
-
-        heartbeatHandler = new android.os.Handler(android.os.Looper.getMainLooper());
-        heartbeatRunnable = () -> {
-            if (latestStatus != null) {
-                latestStatus.online = false;
-                listener.onStatusUpdate(latestStatus);
-            }
-        };
-
-        statusListener = new ValueEventListener() {
-            @Override
-            public void onDataChange(@NonNull DataSnapshot snapshot) {
-                if (!snapshot.exists()) return;
-
-                DataSnapshot statusNode = snapshot.child("status");
-                DataSnapshot controlNode = snapshot.child("control");
-
-                DeviceStatus status = new DeviceStatus();
-
-                // Status dari node 'status'
-                if (statusNode.exists()) {
-                    status.pumpRunning = getBooleanSafe(statusNode, "pumpRunning", false);
-                    status.moisture = getIntSafe(statusNode, "moisture", 0);
-                    status.lastWatered = getStringSafe(statusNode, "lastWatered", "-");
-                    status.lastDuration = getIntSafe(statusNode, "lastDuration", 0);
-                    
-                    boolean isOnline = getBooleanSafe(statusNode, "online", false);
-                    long lastPingRaw = getLongSafe(statusNode, "lastPing", 0L);
-
-                    if (lastPingRaw > 0) {
-                        // ESP32 bisa nulis lastPing dalam 2 format:
-                        //  - Epoch DETIK   (dari NTP langsung, contoh: 1_700_000_000)
-                        //  - Epoch MILIDETIK (dari Firebase.setTimestamp(), contoh: 1_700_000_000_000)
-                        // Bedainnya: epoch milidetik >= 10_000_000_000 (> 10 milyar)
-                        long lastPingMs;
-                        if (lastPingRaw < 10_000_000_000L) {
-                            lastPingMs = lastPingRaw * 1000L; // Konversi detik → ms
-                        } else {
-                            lastPingMs = lastPingRaw; // Sudah dalam ms
-                        }
-
-                        long currentMs = System.currentTimeMillis() + serverTimeOffset;
-                        long diffSeconds = Math.abs(currentMs - lastPingMs) / 1000;
-                        Log.d(TAG, "lastPing diff: " + diffSeconds + " detik");
-
-                        // Jika selisih > 30 detik, anggap offline
-                        if (diffSeconds > 30) {
-                            isOnline = false;
-                        } else {
-                            isOnline = true;
-                        }
-
-                    } else if (lastPingRaw == -1) {
-                        // NTP belum sync saat data dikirim, fallback ke field "online"
-                        // isOnline sudah dibaca dari getBooleanSafe di atas → tetap pakai itu
-                        Log.d(TAG, "lastPing = -1 (NTP belum sync), fallback ke field online: " + isOnline);
-
-                    } else {
-                        // lastPing = 0: data lama/hantu sebelum fix, anggap OFFLINE
-                        isOnline = false;
-                    }
-                    status.online = isOnline;
-                }
-
-                // Status dari node 'control'
-                if (controlNode.exists()) {
-                    status.autoWatering = getBooleanSafe(controlNode, "autoWatering", true);
-                }
-
-                latestStatus = status;
-                listener.onStatusUpdate(status);
-
-                // Reset timeout heartbeat
-                if (heartbeatHandler != null) {
-                    heartbeatHandler.removeCallbacks(heartbeatRunnable);
-                    if (status.online) {
-                        // 20 detik tanpa data masuk dari ESP32 = OFFLINE
-                        heartbeatHandler.postDelayed(heartbeatRunnable, 20000); 
-                    }
-                }
-            }
-
-            @Override
-            public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Status listener error: " + error.getMessage());
-                listener.onError(error.getMessage());
-            }
-        };
-
-        // Listen ke level device untuk dapet control & status sekaligus
-        statusRef.getParent().addValueEventListener(statusListener);
+        pendengarStatus.mulai(listener);
     }
 
-    /**
-     * Berhenti mendengarkan status.
-     */
+    /** Hentikan listener – panggil di onDestroyView() untuk mencegah memory leak */
     public void stopListening() {
-        if (statusListener != null) {
-            statusRef.getParent().removeEventListener(statusListener);
-            statusListener = null;
-        }
-        if (heartbeatHandler != null) {
-            heartbeatHandler.removeCallbacks(heartbeatRunnable);
-            heartbeatHandler = null;
-        }
+        pendengarStatus.berhenti();
     }
 
-    // ========================================
-    // HELPER
-    // ========================================
+    // ═══════════════════════════════════════════════════
+    //  INTERFACE & DATA CLASS (Backward Compatibility)
+    //  Fragment yang sudah ada TIDAK perlu diubah karena
+    //  interface ini meneruskan ke KallbackKontrol.
+    // ═══════════════════════════════════════════════════
 
-    private boolean getBooleanSafe(DataSnapshot snapshot, String key, boolean def) {
-        DataSnapshot child = snapshot.child(key);
-        if (child.exists() && child.getValue() != null) {
-            try {
-                return (Boolean) child.getValue();
-            } catch (Exception e) {
-                return def;
-            }
-        }
-        return def;
-    }
+    /** Callback umum untuk perintah ke Firebase */
+    public interface OnCommandListener extends KallbackKontrol.PerintahListener {}
 
-    private int getIntSafe(DataSnapshot snapshot, String key, int def) {
-        DataSnapshot child = snapshot.child(key);
-        if (child.exists() && child.getValue() != null) {
-            try {
-                return ((Long) child.getValue()).intValue();
-            } catch (Exception e) {
-                return def;
-            }
-        }
-        return def;
-    }
+    /** Callback update status real-time ESP32 */
+    public interface OnStatusUpdateListener extends KallbackKontrol.StatusListener {}
 
-    private long getLongSafe(DataSnapshot snapshot, String key, long def) {
-        DataSnapshot child = snapshot.child(key);
-        if (child.exists() && child.getValue() != null) {
-            try {
-                if (child.getValue() instanceof Long) {
-                    return (Long) child.getValue();
-                } else if (child.getValue() instanceof Integer) {
-                    return ((Integer) child.getValue()).longValue();
-                } else if (child.getValue() instanceof Double) {
-                    return ((Double) child.getValue()).longValue();
-                } else {
-                    return Long.parseLong(child.getValue().toString());
-                }
-            } catch (Exception e) {
-                return def;
-            }
-        }
-        return def;
-    }
+    /** Callback baca batas kelembaban dari Firebase */
+    public interface OnThresholdLoadListener extends KallbackKontrol.BatasKelembabanListener {}
 
-    private String getStringSafe(DataSnapshot snapshot, String key, String def) {
-        DataSnapshot child = snapshot.child(key);
-        if (child.exists() && child.getValue() != null) {
-            return child.getValue().toString();
-        }
-        return def;
-    }
-
-    // ========================================
-    // DATA CLASSES & INTERFACES
-    // ========================================
+    /** Callback baca jadwal penyiraman dari Firebase */
+    public interface OnScheduleLoadListener extends KallbackKontrol.JadwalListener {}
 
     /**
-     * Data status perangkat ESP32
+     * Data class status perangkat ESP32.
+     * Meneruskan ke StatusPerangkat agar Fragment lama tidak perlu diubah.
      */
-    public static class DeviceStatus {
-        public boolean pumpRunning = false;
-        public boolean autoWatering = false; // Tambahan: status mode otomatis (Default: OFF)
-        public int moisture = 0;
-        public String lastWatered = "-";
-        public int lastDuration = 0;
-        public boolean online = false;
-    }
-
-    /**
-     * Callback saat mengirim perintah ke Firebase
-     */
-    public interface OnCommandListener {
-        void onSuccess();
-        void onFailure(String errorMessage);
-    }
-
-    /**
-     * Callback saat menerima update status dari ESP32
-     */
-    public interface OnStatusUpdateListener {
-        void onStatusUpdate(DeviceStatus status);
-        void onError(String errorMessage);
-    }
+    public static class DeviceStatus extends StatusPerangkat {}
 }
