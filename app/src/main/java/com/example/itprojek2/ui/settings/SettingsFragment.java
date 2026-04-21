@@ -44,7 +44,12 @@ public class SettingsFragment extends Fragment {
 
         binding.cardMoistureLimit.setOnClickListener(v -> showMoistureLimitDialog());
 
+        binding.cardScheduleWatering.setOnClickListener(v -> showScheduleWateringDialog());
+
         binding.cardChangeWifi.setOnClickListener(v -> showChangeWifiDialog());
+
+        // Load ringkasan jadwal agar tampil di subtitle card
+        loadAndUpdateScheduleSummary();
     }
 
     private void showMoistureLimitDialog() {
@@ -306,6 +311,159 @@ public class SettingsFragment extends Fragment {
                     }
                 }
             });
+        });
+
+        dialog.show();
+    }
+
+    private void loadAndUpdateScheduleSummary() {
+        controller.loadSchedule((hour, minute, durationSec, enabled) -> {
+            if (!isAdded() || binding == null) return;
+            requireActivity().runOnUiThread(() -> {
+                if (!enabled) {
+                    binding.tvScheduleSummary.setText("Belum aktif · Ketuk untuk mengatur");
+                } else {
+                    binding.tvScheduleSummary.setText(
+                            String.format(java.util.Locale.getDefault(),
+                                    "Aktif · Jam %02d:%02d · %d detik", hour, minute, durationSec));
+                }
+            });
+        });
+    }
+
+    private void showScheduleWateringDialog() {
+        android.view.View dialogView = LayoutInflater.from(requireContext())
+                .inflate(com.example.itprojek2.R.layout.dialog_schedule_watering, null);
+
+        android.app.AlertDialog dialog = new android.app.AlertDialog.Builder(requireContext())
+                .setView(dialogView)
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(
+                    new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
+        }
+
+        com.google.android.material.switchmaterial.SwitchMaterial switchEnabled =
+                dialogView.findViewById(com.example.itprojek2.R.id.switchScheduleEnabled);
+        android.widget.TextView tvStatus =
+                dialogView.findViewById(com.example.itprojek2.R.id.tvScheduleStatus);
+        com.google.android.material.textfield.TextInputEditText etHour =
+                dialogView.findViewById(com.example.itprojek2.R.id.etScheduleHour);
+        com.google.android.material.textfield.TextInputEditText etMinute =
+                dialogView.findViewById(com.example.itprojek2.R.id.etScheduleMinute);
+        com.google.android.material.slider.Slider sliderDuration =
+                dialogView.findViewById(com.example.itprojek2.R.id.sliderDuration);
+        android.widget.TextView tvDuration =
+                dialogView.findViewById(com.example.itprojek2.R.id.tvDurationValue);
+        com.google.android.material.button.MaterialButton btnSave =
+                dialogView.findViewById(com.example.itprojek2.R.id.btnSaveSchedule);
+        com.google.android.material.button.MaterialButton btnCancel =
+                dialogView.findViewById(com.example.itprojek2.R.id.btnCancelSchedule);
+
+        // Helper update badge status
+        Runnable updateStatusBadge = () -> {
+            boolean isOn = switchEnabled.isChecked();
+            if (isOn) {
+                tvStatus.setText("✅  Jadwal Aktif");
+                tvStatus.setTextColor(androidx.core.content.ContextCompat.getColor(
+                        requireContext(), com.example.itprojek2.R.color.success_green));
+                tvStatus.setBackground(androidx.core.content.ContextCompat.getDrawable(
+                        requireContext(), com.example.itprojek2.R.drawable.shape_badge_active));
+            } else {
+                tvStatus.setText("❌  Jadwal Tidak Aktif");
+                tvStatus.setTextColor(androidx.core.content.ContextCompat.getColor(
+                        requireContext(), com.example.itprojek2.R.color.danger_red));
+                tvStatus.setBackground(androidx.core.content.ContextCompat.getDrawable(
+                        requireContext(), com.example.itprojek2.R.drawable.shape_badge_inactive));
+            }
+        };
+
+        // Load data dari Firebase
+        controller.loadSchedule((hour, minute, durationSec, enabled) -> {
+            if (!isAdded()) return;
+            requireActivity().runOnUiThread(() -> {
+                etHour.setText(String.format(java.util.Locale.getDefault(), "%02d", hour));
+                etMinute.setText(String.format(java.util.Locale.getDefault(), "%02d", minute));
+                sliderDuration.setValue(Math.min(Math.max(durationSec, 5), 120));
+                tvDuration.setText(durationSec + " dtk");
+                switchEnabled.setChecked(enabled);
+                updateStatusBadge.run();
+            });
+        });
+
+        // Listener switch toggle
+        switchEnabled.setOnCheckedChangeListener((buttonView, isChecked) -> updateStatusBadge.run());
+
+        // Update label durasi real-time saat slider digeser
+        sliderDuration.addOnChangeListener((slider, value, fromUser) ->
+                tvDuration.setText((int) value + " dtk"));
+
+        btnCancel.setOnClickListener(v -> dialog.dismiss());
+
+        btnSave.setOnClickListener(v -> {
+            String hourStr = etHour.getText() != null ? etHour.getText().toString().trim() : "";
+            String minuteStr = etMinute.getText() != null ? etMinute.getText().toString().trim() : "";
+
+            // Validasi input jam
+            if (hourStr.isEmpty() || minuteStr.isEmpty()) {
+                Toast.makeText(getContext(), "Masukkan jam dan menit terlebih dahulu!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int hourVal, minVal;
+            try {
+                hourVal = Integer.parseInt(hourStr);
+                minVal = Integer.parseInt(minuteStr);
+            } catch (NumberFormatException e) {
+                Toast.makeText(getContext(), "Format jam tidak valid!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            if (hourVal < 0 || hourVal > 23) {
+                Toast.makeText(getContext(), "Jam harus antara 0 sampai 23!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+            if (minVal < 0 || minVal > 59) {
+                Toast.makeText(getContext(), "Menit harus antara 0 sampai 59!", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            int durationVal = (int) sliderDuration.getValue();
+            boolean isEnabled = switchEnabled.isChecked();
+
+            btnSave.setEnabled(false);
+            btnSave.setText("MENYIMPAN...");
+
+            controller.saveSchedule(hourVal, minVal, durationVal, isEnabled,
+                    new com.example.itprojek2.controller.IrrigationController.OnCommandListener() {
+                        @Override
+                        public void onSuccess() {
+                            if (!isAdded()) return;
+                            requireActivity().runOnUiThread(() -> {
+                                String msg = isEnabled
+                                        ? String.format(java.util.Locale.getDefault(),
+                                            "✓ Jadwal aktif · Siram jam %02d:%02d (%d dtk)",
+                                            hourVal, minVal, durationVal)
+                                        : "Jadwal penyiraman dinonaktifkan.";
+                                Toast.makeText(getContext(), msg, Toast.LENGTH_LONG).show();
+                                // Update subtitle card
+                                loadAndUpdateScheduleSummary();
+                                dialog.dismiss();
+                            });
+                        }
+
+                        @Override
+                        public void onFailure(String errorMessage) {
+                            if (!isAdded()) return;
+                            requireActivity().runOnUiThread(() -> {
+                                btnSave.setEnabled(true);
+                                btnSave.setText("Simpan Jadwal");
+                                Toast.makeText(getContext(),
+                                        "Gagal: " + errorMessage, Toast.LENGTH_SHORT).show();
+                            });
+                        }
+                    });
         });
 
         dialog.show();
