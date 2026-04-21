@@ -44,8 +44,8 @@ public class ManajerNotifikasi {
     private static final String KEY_KERING    = "waktu_notif_kering";
     private static final String KEY_BASAH     = "waktu_notif_basah";
 
-    // Cooldown minimum antar notifikasi yang sama (10 menit = 600.000 ms)
-    private static final long COOLDOWN_MS = 10 * 60 * 1000L;
+    // Cooldown minimum antar notifikasi yang sama (1 menit = 60.000 ms)
+    private static final long COOLDOWN_MS = 1 * 60 * 1000L;
 
     private final Context context;
 
@@ -86,7 +86,7 @@ public class ManajerNotifikasi {
      * @param batasMax    Batas maksimum — notifikasi basah jika kelembaban di atas ini
      */
     public void cekDanKirimNotifikasi(int kelembaban, int batasMin, int batasMax) {
-        if (kelembaban <= 0) return; // Abaikan jika data belum valid (sensor belum siap)
+        if (kelembaban <= 0) return; // Abaikan jika data 0% (kemungkinan sensor belum siap/tercabut)
 
         if (kelembaban < batasMin) {
             kirimNotifikasiKering(kelembaban, batasMin);
@@ -105,7 +105,7 @@ public class ManajerNotifikasi {
             return;
         }
 
-        String judul = "🌵 Tanah Kering!";
+        String judul = "🍇 Tanah Kering!";
         String isi   = "Kelembaban " + kelembaban + "% — di bawah batas minimum " + batasMin
                      + "%. Segera lakukan penyiraman!";
 
@@ -124,7 +124,7 @@ public class ManajerNotifikasi {
             return;
         }
 
-        String judul = "💧 Tanah Terlalu Basah!";
+        String judul = "🍇 Tanah Terlalu Basah!";
         String isi   = "Kelembaban " + kelembaban + "% — melebihi batas maksimum " + batasMax
                      + "%. Kurangi air atau periksa drainase.";
 
