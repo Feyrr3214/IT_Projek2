@@ -21,50 +21,49 @@ public class KontrolPompa {
     }
 
     /**
-     * Nyalakan pompa secara manual.
-     * ESP32 akan mendeteksi dan langsung menyalakan pompa.
+     * Mengatur mode secara eksklusif.
+     * Jika satu menyala, matikan yang lainnya.
+     * Mode: "autoWatering", "scheduleMode", "manualPump"
      */
+    public void setModeEksklusif(String modeName, boolean isEnabled, @Nullable KallbackKontrol.PerintahListener listener) {
+        java.util.Map<String, Object> updates = new java.util.HashMap<>();
+        
+        if (isEnabled) {
+            updates.put("autoWatering", modeName.equals("autoWatering"));
+            updates.put("scheduleMode", modeName.equals("scheduleMode"));
+            updates.put("manualPump", modeName.equals("manualPump"));
+        } else {
+            updates.put(modeName, false);
+        }
+
+        refKontrol.updateChildren(updates)
+                .addOnSuccessListener(unused -> {
+                    Log.d(TAG, "Mode " + modeName + " = " + isEnabled);
+                    if (listener != null) listener.onSuccess();
+                })
+                .addOnFailureListener(e -> {
+                    Log.e(TAG, "Gagal set mode: " + e.getMessage());
+                    if (listener != null) listener.onFailure(e.getMessage());
+                });
+    }
+
+    /** Nyalakan pompa secara manual */
     public void nyalakanPompa(@Nullable KallbackKontrol.PerintahListener listener) {
-        refKontrol.child("manualPump").setValue(true)
-                .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Pompa manual DINYALAKAN");
-                    if (listener != null) listener.onSuccess();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal nyalakan pompa: " + e.getMessage());
-                    if (listener != null) listener.onFailure(e.getMessage());
-                });
+        setModeEksklusif("manualPump", true, listener);
     }
 
-    /**
-     * Matikan pompa yang sedang menyala.
-     */
+    /** Matikan pompa manual */
     public void matikanPompa(@Nullable KallbackKontrol.PerintahListener listener) {
-        refKontrol.child("manualPump").setValue(false)
-                .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Pompa manual DIMATIKAN");
-                    if (listener != null) listener.onSuccess();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal matikan pompa: " + e.getMessage());
-                    if (listener != null) listener.onFailure(e.getMessage());
-                });
+        setModeEksklusif("manualPump", false, listener);
     }
 
-    /**
-     * Aktifkan atau nonaktifkan mode penyiraman otomatis berbasis kelembaban.
-     *
-     * @param aktif true = aktifkan, false = matikan
-     */
+    /** Aktifkan/nonaktifkan mode otomatis */
     public void aturPenyiramanOtomatis(boolean aktif, @Nullable KallbackKontrol.PerintahListener listener) {
-        refKontrol.child("autoWatering").setValue(aktif)
-                .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Penyiraman otomatis: " + (aktif ? "AKTIF" : "NONAKTIF"));
-                    if (listener != null) listener.onSuccess();
-                })
-                .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal atur penyiraman otomatis: " + e.getMessage());
-                    if (listener != null) listener.onFailure(e.getMessage());
-                });
+        setModeEksklusif("autoWatering", aktif, listener);
+    }
+    
+    /** Aktifkan/nonaktifkan mode terjadwal */
+    public void aturPenyiramanTerjadwal(boolean aktif, @Nullable KallbackKontrol.PerintahListener listener) {
+        setModeEksklusif("scheduleMode", aktif, listener);
     }
 }

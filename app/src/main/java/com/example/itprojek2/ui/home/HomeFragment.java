@@ -23,11 +23,10 @@ public class HomeFragment extends Fragment {
     private IrrigationController controller;
     private ManajerNotifikasi manajerNotifikasi;
 
-    // Apakah pompa sedang dalam mode manual aktif (dari sisi Android)
-    private boolean isManualPumpOn = false;
-
     // Mencegah infinite loop pada switch listener
-    private boolean isAutoSwitchProgrammatic = false;
+    private boolean isAutoProgrammatic = false;
+    private boolean isScheduleProgrammatic = false;
+    private boolean isManualProgrammatic = false;
 
     // Batas kelembaban yang dimuat dari Firebase (untuk cek notifikasi)
     private int batasMin = 30;
@@ -72,8 +71,7 @@ public class HomeFragment extends Fragment {
             batasMax = max;
         });
 
-        // Inisialisasi awal UI sesuai state default di XML (Otomatis: OFF)
-        updateAutoWateringUI(false);
+    
 
         // Load nama user dari sesi
         android.content.SharedPreferences prefs = requireActivity().getSharedPreferences("UserSession", android.content.Context.MODE_PRIVATE);
@@ -97,96 +95,32 @@ public class HomeFragment extends Fragment {
         });
 
         // ========================================
-        // TOMBOL SIRAM MANUAL (TOGGLE ON/OFF)
         // ========================================
-        binding.btnManualWater.setOnClickListener(v -> {
-            binding.btnManualWater.setEnabled(false);
-
-            if (!isManualPumpOn) {
-                // Nyalakan pompa
-                controller.startManualPump(new IrrigationController.OnCommandListener() {
-                    @Override
-                    public void onSuccess() {
-                        if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> {
-                            isManualPumpOn = true;
-                            binding.btnManualWater.setText("HENTIKAN POMPA");
-                            binding.btnManualWater.setEnabled(true);
-                            Toast.makeText(getContext(),
-                                    "✓ Pompa manual aktif! Pesan terkirim ke LCD.", Toast.LENGTH_SHORT).show();
-                        });
-                    }
-
-                    @Override
-                    public void onFailure(String errorMessage) {
-                        if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> {
-                            binding.btnManualWater.setEnabled(true);
-                            Toast.makeText(getContext(),
-                                    "Gagal: " + errorMessage, Toast.LENGTH_SHORT).show();
-                        });
-                    }
-                });
-            } else {
-                // Matikan pompa
-                controller.stopManualPump(new IrrigationController.OnCommandListener() {
-                    @Override
-                    public void onSuccess() {
-                        if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> {
-                            isManualPumpOn = false;
-                            binding.btnManualWater.setText("SIRAM MANUAL SEKARANG");
-                            binding.btnManualWater.setEnabled(true);
-                            Toast.makeText(getContext(),
-                                    "Pompa manual dimatikan.", Toast.LENGTH_SHORT).show();
-                        });
-                    }
-
-                    @Override
-                    public void onFailure(String errorMessage) {
-                        if (!isAdded()) return;
-                        requireActivity().runOnUiThread(() -> {
-                            binding.btnManualWater.setEnabled(true);
-                            Toast.makeText(getContext(),
-                                    "Gagal: " + errorMessage, Toast.LENGTH_SHORT).show();
-                        });
-                    }
-                });
-            }
+        // 1. SWITCH SENSOR OTOMATIS
+        // ========================================
+        binding.switchAutoWatering.setOnCheckedChangeListener((btn, isChecked) -> {
+            if (isAutoProgrammatic) return;
+            controller.setAutoWatering(isChecked, createModeListener("Otomatis", isChecked));
         });
 
         // ========================================
-        // SWITCH PENYIRAMAN OTOMATIS
+        // 2. SWITCH WAKTU TERJADWAL
         // ========================================
-        binding.switchAutoWatering.setOnCheckedChangeListener((buttonView, isChecked) -> {
-            if (isAutoSwitchProgrammatic) return; // Abaikan jika diubah dari kode
+        binding.switchScheduleMode.setOnCheckedChangeListener((btn, isChecked) -> {
+            if (isScheduleProgrammatic) return;
+            controller.setScheduleMode(isChecked, createModeListener("Terjadwal", isChecked));
+        });
 
-            controller.setAutoWatering(isChecked, new IrrigationController.OnCommandListener() {
-                @Override
-                public void onSuccess() {
-                    if (!isAdded()) return;
-                    requireActivity().runOnUiThread(() -> {
-                        updateAutoWateringUI(isChecked); // Update UI warna & tombol manual
-                        String msg = isChecked
-                                ? "✓ Penyiraman otomatis diaktifkan"
-                                : "Penyiraman otomatis dinonaktifkan";
-                        Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
-                    });
-                }
-
-                @Override
-                public void onFailure(String errorMessage) {
-                    if (!isAdded()) return;
-                    requireActivity().runOnUiThread(() -> {
-                        // Rollback switch
-                        isAutoSwitchProgrammatic = true;
-                        binding.switchAutoWatering.setChecked(!isChecked);
-                        isAutoSwitchProgrammatic = false;
-                        Toast.makeText(getContext(),
-                                "Gagal: " + errorMessage, Toast.LENGTH_SHORT).show();
-                    });
-                }
-            });
+        // ========================================
+        // 3. SWITCH SIRAM MANUAL
+        // ========================================
+        binding.switchManualPump.setOnCheckedChangeListener((btn, isChecked) -> {
+            if (isManualProgrammatic) return;
+            if (isChecked) {
+                controller.startManualPump(createModeListener("Manual", true));
+            } else {
+                controller.stopManualPump(createModeListener("Manual", false));
+            }
         });
 
         // ========================================
@@ -226,13 +160,32 @@ public class HomeFragment extends Fragment {
                 if (!isAdded() || binding == null) return;
 
                 requireActivity().runOnUiThread(() -> {
-                    // Update mode otomatis (hanya jika berubah dari Firebase)
-                    isAutoSwitchProgrammatic = true;
+                    // 1. Sync nilai switch
+                    isAutoProgrammatic = true;
                     binding.switchAutoWatering.setChecked(status.autoWatering);
-                    isAutoSwitchProgrammatic = false;
+                    isAutoProgrammatic = false;
 
-                    // Update UI berdasarkan mode otomatis
-                    updateAutoWateringUI(status.autoWatering);
+                    isScheduleProgrammatic = true;
+                    binding.switchScheduleMode.setChecked(status.scheduleMode);
+                    isScheduleProgrammatic = false;
+
+                    isManualProgrammatic = true;
+                    binding.switchManualPump.setChecked(status.pumpRunning);
+                    isManualProgrammatic = false;
+
+                    // 2. Terapkan Mutually Exclusive Visual (Abu-abu jika ada yang lain aktif)
+                    boolean adaYangAktif = status.autoWatering || status.scheduleMode || status.pumpRunning;
+                    
+                    if (adaYangAktif) {
+                        binding.switchAutoWatering.setEnabled(status.autoWatering);
+                        binding.switchScheduleMode.setEnabled(status.scheduleMode);
+                        binding.switchManualPump.setEnabled(status.pumpRunning);
+                    } else {
+                        // Jika offline semua, kembalikan ke aktif semua agar bisa ditekan
+                        binding.switchAutoWatering.setEnabled(true);
+                        binding.switchScheduleMode.setEnabled(true);
+                        binding.switchManualPump.setEnabled(true);
+                    }
 
                     // Update status online/offline
                     if (status.online) {
@@ -311,29 +264,25 @@ public class HomeFragment extends Fragment {
         });
     }
 
-    /**
-     * Memperbarui UI berdasarkan status mode otomatis:
-     * 1. Mengaktifkan/Menonaktifkan tombol manual
-     * 2. Mengubah warna track switch (Ungu jika ON, Merah jika OFF)
-     */
-    private void updateAutoWateringUI(boolean isAuto) {
-        if (binding == null || getContext() == null) return;
+    private IrrigationController.OnCommandListener createModeListener(String mode, boolean isChecked) {
+        return new IrrigationController.OnCommandListener() {
+            @Override
+            public void onSuccess() {
+                if (!isAdded()) return;
+                requireActivity().runOnUiThread(() -> {
+                    String msg = isChecked ? ("Mode " + mode + " ON") : ("Mode " + mode + " OFF");
+                    Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
+                });
+            }
 
-        // 1. Disable / Enable tombol manual
-        // Jika Otomatis ON, maka Manual harus Disabled (agar tidak bentrok)
-        binding.btnManualWater.setEnabled(!isAuto);
-        
-        // Atur transparansi: 0.5f (buram) jika disabled, 1.0f (terang) jika enabled
-        binding.btnManualWater.setAlpha(isAuto ? 0.5f : 1.0f);
-
-        // 2. Ganti Warna Switch Track (Programmatic)
-        // Ungu jika ON (@color/primary_purple), Merah jika OFF (@color/danger_red)
-        int colorRes = isAuto ? R.color.primary_purple : R.color.danger_red;
-        int color = ContextCompat.getColor(requireContext(), colorRes);
-        
-        binding.switchAutoWatering.setTrackTintList(
-                android.content.res.ColorStateList.valueOf(color)
-        );
+            @Override
+            public void onFailure(String errorMessage) {
+                if (!isAdded()) return;
+                requireActivity().runOnUiThread(() -> {
+                    Toast.makeText(getContext(), "Gagal: " + errorMessage, Toast.LENGTH_SHORT).show();
+                });
+            }
+        };
     }
 
     @Override
