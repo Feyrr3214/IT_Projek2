@@ -341,7 +341,7 @@ public class SettingsFragment extends Fragment {
                     new android.graphics.drawable.ColorDrawable(android.graphics.Color.TRANSPARENT));
         }
 
-        android.widget.ImageButton btnClose = dialogView.findViewById(com.example.itprojek2.R.id.btnCloseDialog);
+        android.widget.TextView btnClose = dialogView.findViewById(com.example.itprojek2.R.id.btnCloseDialog);
         com.google.android.material.button.MaterialButton btnTambah = dialogView.findViewById(com.example.itprojek2.R.id.btnTambahJadwal);
         androidx.recyclerview.widget.RecyclerView rvJadwal = dialogView.findViewById(com.example.itprojek2.R.id.rvJadwal);
         android.widget.TextView tvEmpty = dialogView.findViewById(com.example.itprojek2.R.id.tvEmptyJadwal);

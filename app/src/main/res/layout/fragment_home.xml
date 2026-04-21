@@ -215,7 +215,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Sensor Otomatis"
+                                android:text="Penyiraman Otomatis"
                                 android:textSize="17sp"
                                 android:textStyle="bold"
                                 android:textColor="@color/text_dark" />
@@ -257,7 +257,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Waktu Terjadwal"
+                                android:text="Penyiraman Terjadwal"
                                 android:textSize="17sp"
                                 android:textStyle="bold"
                                 android:textColor="@color/text_dark" />
@@ -298,7 +298,7 @@
                             <TextView
                                 android:layout_width="wrap_content"
                                 android:layout_height="wrap_content"
-                                android:text="Siram Manual"
+                                android:text="Penyiraman Manual"
                                 android:textSize="17sp"
                                 android:textStyle="bold"
                                 android:textColor="@color/text_dark" />
@@ -310,12 +310,16 @@
                                 android:textColor="@color/text_gray" />
                         </LinearLayout>
 
-                        <com.google.android.material.switchmaterial.SwitchMaterial
-                            android:id="@+id/switchManualPump"
+                        <com.google.android.material.button.MaterialButton
+                            android:id="@+id/btnManualPump"
                             android:layout_width="wrap_content"
                             android:layout_height="wrap_content"
-                            android:checked="false"
-                            app:thumbTint="@color/surface_white" />
+                            android:layout_marginStart="8dp"
+                            android:text="SIRAM"
+                            android:textColor="@color/surface_white"
+                            android:textStyle="bold"
+                            app:backgroundTint="@color/primary_purple"
+                            app:cornerRadius="8dp" />
                     </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>

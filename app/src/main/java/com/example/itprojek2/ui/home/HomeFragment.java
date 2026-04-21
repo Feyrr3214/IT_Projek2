@@ -112,11 +112,11 @@ public class HomeFragment extends Fragment {
         });
 
         // ========================================
-        // 3. SWITCH SIRAM MANUAL
+        // 3. TOMBOL SIRAM MANUAL
         // ========================================
-        binding.switchManualPump.setOnCheckedChangeListener((btn, isChecked) -> {
-            if (isManualProgrammatic) return;
-            if (isChecked) {
+        binding.btnManualPump.setOnClickListener(v -> {
+            boolean isCurrentlyOn = binding.btnManualPump.getText().toString().equalsIgnoreCase("STOP");
+            if (!isCurrentlyOn) {
                 controller.startManualPump(createModeListener("Manual", true));
             } else {
                 controller.stopManualPump(createModeListener("Manual", false));
@@ -169,22 +169,40 @@ public class HomeFragment extends Fragment {
                     binding.switchScheduleMode.setChecked(status.scheduleMode);
                     isScheduleProgrammatic = false;
 
-                    isManualProgrammatic = true;
-                    binding.switchManualPump.setChecked(status.pumpRunning);
-                    isManualProgrammatic = false;
+                    // Update UI Tombol Manual
+                    int colorPurple = ContextCompat.getColor(requireContext(), R.color.primary_purple);
+                    int colorDisabled = ContextCompat.getColor(requireContext(), R.color.primary_purple_light); // Ungu pudar untuk abu-abu
+                    int colorRed = ContextCompat.getColor(requireContext(), R.color.danger_red);
+
+                    int[][] buttonStates = new int[][] {
+                        new int[] {-android.R.attr.state_enabled}, // disabled
+                        new int[] {android.R.attr.state_enabled}   // enabled
+                    };
+
+                    if (status.manualPump) {
+                        binding.btnManualPump.setText("STOP");
+                        binding.btnManualPump.setBackgroundTintList(new android.content.res.ColorStateList(
+                                buttonStates, new int[] { colorDisabled, colorRed }
+                        ));
+                    } else {
+                        binding.btnManualPump.setText("SIRAM");
+                        binding.btnManualPump.setBackgroundTintList(new android.content.res.ColorStateList(
+                                buttonStates, new int[] { colorDisabled, colorPurple }
+                        ));
+                    }
 
                     // 2. Terapkan Mutually Exclusive Visual (Abu-abu jika ada yang lain aktif)
-                    boolean adaYangAktif = status.autoWatering || status.scheduleMode || status.pumpRunning;
+                    boolean adaYangAktif = status.autoWatering || status.scheduleMode || status.manualPump;
                     
                     if (adaYangAktif) {
                         binding.switchAutoWatering.setEnabled(status.autoWatering);
                         binding.switchScheduleMode.setEnabled(status.scheduleMode);
-                        binding.switchManualPump.setEnabled(status.pumpRunning);
+                        binding.btnManualPump.setEnabled(status.manualPump);
                     } else {
                         // Jika offline semua, kembalikan ke aktif semua agar bisa ditekan
                         binding.switchAutoWatering.setEnabled(true);
                         binding.switchScheduleMode.setEnabled(true);
-                        binding.switchManualPump.setEnabled(true);
+                        binding.btnManualPump.setEnabled(true);
                     }
 
                     // Update status online/offline

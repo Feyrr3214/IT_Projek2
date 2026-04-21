@@ -206,6 +206,7 @@ public class IrrigationController {
                 DeviceStatus ds = new DeviceStatus();
                 ds.pumpRunning      = ds.pompaMenyala        = sp.pumpRunning;
                 ds.autoWatering     = ds.penyiramanOtomatis  = sp.autoWatering;
+                ds.manualPump       = sp.manualPump;
                 ds.scheduleMode     = ds.modeTerjadwal       = sp.scheduleMode;
                 ds.moisture         = ds.kelembaban          = sp.moisture;
                 ds.lastWatered      = ds.terakhirDisiram     = sp.lastWatered;

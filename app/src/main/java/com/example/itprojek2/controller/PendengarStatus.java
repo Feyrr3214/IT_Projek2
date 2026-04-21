@@ -116,6 +116,7 @@ public class PendengarStatus {
                             = ambilBoolean(nodeKontrol, "autoWatering", false);
                     status.scheduleMode = status.modeTerjadwal
                             = ambilBoolean(nodeKontrol, "scheduleMode", false);
+                    status.manualPump = ambilBoolean(nodeKontrol, "manualPump", false);
                 }
 
                 statusTerakhir = status;

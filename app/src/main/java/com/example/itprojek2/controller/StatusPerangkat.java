@@ -38,8 +38,9 @@ public class StatusPerangkat {
     public boolean pumpRunning     = false;
     /** @see #penyiramanOtomatis */
     public boolean autoWatering    = false;
-    /** @see #modeTerjadwal */
     public boolean scheduleMode    = false;
+    public boolean manualPump      = false;
+    
     /** @see #kelembaban */
     public int     moisture        = 0;
     /** @see #terakhirDisiram */
