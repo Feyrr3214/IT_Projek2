@@ -44,8 +44,8 @@ public class ManajerNotifikasi {
     private static final String KEY_KERING    = "waktu_notif_kering";
     private static final String KEY_BASAH     = "waktu_notif_basah";
 
-    // Cooldown minimum antar notifikasi yang sama (1 menit = 60.000 ms)
-    private static final long COOLDOWN_MS = 1 * 60 * 1000L;
+    // Cooldown minimum antar notifikasi yang sama (30 detik = 30.000 ms)
+    private static final long COOLDOWN_MS = 30 * 1000L;
 
     private final Context context;
 

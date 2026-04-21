@@ -65,8 +65,8 @@ public class HomeFragment extends Fragment {
             }
         }
 
-        // Load batas kelembaban dari Firebase untuk cek notifikasi
-        controller.loadMoistureThreshold((min, max) -> {
+        // Listen batas kelembaban secara real-time dari Firebase agar notifikasi akurat
+        controller.listenMoistureThreshold((min, max) -> {
             batasMin = min;
             batasMax = max;
         });

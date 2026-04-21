@@ -141,9 +141,14 @@ public class IrrigationController {
         kontrolKelembaban.simpanBatas(minValue, maxValue, listener);
     }
 
-    /** Baca batas kelembaban dari Firebase */
+    /** Baca batas kelembaban dari Firebase (Sekali) */
     public void loadMoistureThreshold(OnThresholdLoadListener listener) {
         kontrolKelembaban.bacaBatas(listener::onLoaded);
+    }
+
+    /** Listen batas kelembaban secara realtime dari Firebase */
+    public void listenMoistureThreshold(OnThresholdLoadListener listener) {
+        kontrolKelembaban.listenBatas(listener::onLoaded);
     }
 
     // ═══════════════════════════════════════════════════
@@ -224,6 +229,7 @@ public class IrrigationController {
     /** Hentikan listener – panggil di onDestroyView() untuk mencegah memory leak */
     public void stopListening() {
         pendengarStatus.berhenti();
+        kontrolKelembaban.stopListen();
     }
 
     // ═══════════════════════════════════════════════════

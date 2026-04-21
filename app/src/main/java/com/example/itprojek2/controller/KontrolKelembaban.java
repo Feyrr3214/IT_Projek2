@@ -22,6 +22,7 @@ public class KontrolKelembaban {
 
     private static final String TAG = "KontrolKelembaban";
     private final DatabaseReference refKontrol;
+    private ValueEventListener listenerBatas;
 
     public KontrolKelembaban(DatabaseReference refKontrol) {
         this.refKontrol = refKontrol;
@@ -77,6 +78,37 @@ public class KontrolKelembaban {
                 listener.onLoaded(30, 70); // Fallback ke default
             }
         });
+    }
+    
+    /** 
+     * Listen batas kelembaban secara realtime.
+     */
+    public void listenBatas(KallbackKontrol.BatasKelembabanListener listener) {
+        stopListen();
+        listenerBatas = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                int min = 30, max = 70;
+                if (snapshot.exists()) {
+                    min = ambilInt(snapshot, "minMoisture", 30);
+                    max = ambilInt(snapshot, "maxMoisture", 70);
+                }
+                listener.onLoaded(min, max);
+            }
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                Log.e(TAG, "Listen batas gagal: " + error.getMessage());
+            }
+        };
+        refKontrol.child("threshold").addValueEventListener(listenerBatas);
+    }
+
+    /** Berhenti mendengarkan perubahan batas */
+    public void stopListen() {
+        if (listenerBatas != null) {
+            refKontrol.child("threshold").removeEventListener(listenerBatas);
+            listenerBatas = null;
+        }
     }
 
     // ── Helper ──────────────────────────────────────────────────────────────
