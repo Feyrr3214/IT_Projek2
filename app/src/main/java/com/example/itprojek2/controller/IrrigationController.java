@@ -97,6 +97,7 @@ public class IrrigationController {
     }
 
     /** Matikan pompa yang sedang menyala */
+    /** Matikan pompa manual seketika */
     public void stopManualPump(@Nullable OnCommandListener listener) {
         kontrolPompa.matikanPompa(listener);
     }
@@ -104,6 +105,11 @@ public class IrrigationController {
     /** Aktifkan/nonaktifkan mode penyiraman otomatis berbasis kelembaban */
     public void setAutoWatering(boolean enabled, @Nullable OnCommandListener listener) {
         kontrolPompa.aturPenyiramanOtomatis(enabled, listener);
+    }
+
+    /** Aktifkan/nonaktifkan mode penyiraman terjadwal berbasis waktu */
+    public void setScheduleMode(boolean enabled, @Nullable OnCommandListener listener) {
+        kontrolPompa.aturPenyiramanTerjadwal(enabled, listener);
     }
 
     // ═══════════════════════════════════════════════════
@@ -144,15 +150,31 @@ public class IrrigationController {
     //  JADWAL PENYIRAMAN  →  KontrolJadwal.java
     // ═══════════════════════════════════════════════════
 
-    /** Simpan jadwal penyiraman ke Firebase */
-    public void saveSchedule(int hour, int minute, int durationSec, boolean enabled,
+    /** Tambah jadwal penyiraman baru ke Firebase */
+    public void tambahJadwal(int hour, int minute, int durationSec, boolean enabled,
                              @Nullable OnCommandListener listener) {
-        kontrolJadwal.simpanJadwal(hour, minute, durationSec, enabled, listener);
+        kontrolJadwal.tambahJadwal(hour, minute, durationSec, enabled, listener);
     }
 
-    /** Baca jadwal penyiraman dari Firebase */
-    public void loadSchedule(OnScheduleLoadListener listener) {
-        kontrolJadwal.bacaJadwal(listener::onLoaded);
+    /** Update jadwal penyiraman yang sudah ada */
+    public void updateJadwal(String id, int hour, int minute, int durationSec, boolean enabled,
+                             @Nullable OnCommandListener listener) {
+        kontrolJadwal.updateJadwal(id, hour, minute, durationSec, enabled, listener);
+    }
+
+    /** Hapus jadwal penyiraman dari Firebase */
+    public void hapusJadwal(String id, @Nullable OnCommandListener listener) {
+        kontrolJadwal.hapusJadwal(id, listener);
+    }
+
+    /** Berhenti dari listen daftar jadwal */
+    public void stopListenDaftarJadwal() {
+        kontrolJadwal.stopListen();
+    }
+
+    /** Listen daftar jadwal secara realtime dari Firebase */
+    public void listenDaftarJadwal(OnDaftarJadwalListener listener) {
+        kontrolJadwal.listenDaftarJadwal(listener::onLoaded);
     }
 
     // ═══════════════════════════════════════════════════
@@ -175,7 +197,27 @@ public class IrrigationController {
 
     /** Mulai dengarkan status ESP32 secara real-time */
     public void listenToStatus(OnStatusUpdateListener listener) {
-        pendengarStatus.mulai(listener);
+        // Bridge adapter: terjemahkan StatusPerangkat → DeviceStatus
+        // agar HomeFragment yang pakai IrrigationController.DeviceStatus tidak perlu diubah
+        pendengarStatus.mulai(new KallbackKontrol.StatusListener() {
+            @Override
+            public void onStatusUpdate(StatusPerangkat sp) {
+                // Salin semua field ke DeviceStatus (yang extends StatusPerangkat)
+                DeviceStatus ds = new DeviceStatus();
+                ds.pumpRunning      = ds.pompaMenyala        = sp.pumpRunning;
+                ds.autoWatering     = ds.penyiramanOtomatis  = sp.autoWatering;
+                ds.scheduleMode     = ds.modeTerjadwal       = sp.scheduleMode;
+                ds.moisture         = ds.kelembaban          = sp.moisture;
+                ds.lastWatered      = ds.terakhirDisiram     = sp.lastWatered;
+                ds.lastDuration     = ds.durasiTerakhir      = sp.lastDuration;
+                ds.online           = sp.online;
+                listener.onStatusUpdate(ds);
+            }
+            @Override
+            public void onError(String pesanError) {
+                listener.onError(pesanError);
+            }
+        });
     }
 
     /** Hentikan listener – panggil di onDestroyView() untuk mencegah memory leak */
@@ -192,14 +234,20 @@ public class IrrigationController {
     /** Callback umum untuk perintah ke Firebase */
     public interface OnCommandListener extends KallbackKontrol.PerintahListener {}
 
-    /** Callback update status real-time ESP32 */
-    public interface OnStatusUpdateListener extends KallbackKontrol.StatusListener {}
+    /**
+     * Callback update status real-time ESP32.
+     * Menggunakan DeviceStatus agar HomeFragment TIDAK perlu diubah.
+     */
+    public interface OnStatusUpdateListener {
+        void onStatusUpdate(DeviceStatus status);
+        void onError(String errorMessage);
+    }
 
     /** Callback baca batas kelembaban dari Firebase */
     public interface OnThresholdLoadListener extends KallbackKontrol.BatasKelembabanListener {}
 
-    /** Callback baca jadwal penyiraman dari Firebase */
-    public interface OnScheduleLoadListener extends KallbackKontrol.JadwalListener {}
+    /** Callback daftar jadwal penyiraman dari Firebase */
+    public interface OnDaftarJadwalListener extends KallbackKontrol.DaftarJadwalListener {}
 
     /**
      * Data class status perangkat ESP32.

@@ -199,20 +199,33 @@
                     android:orientation="vertical"
                     android:padding="24dp">
 
+                    <!-- 1. Mode Otomatis -->
                     <LinearLayout
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:orientation="horizontal"
-                        android:gravity="center_vertical">
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="16dp">
 
-                        <TextView
+                        <LinearLayout
                             android:layout_width="0dp"
                             android:layout_height="wrap_content"
                             android:layout_weight="1"
-                            android:text="Penyiraman Otomatis"
-                            android:textSize="17sp"
-                            android:textStyle="bold"
-                            android:textColor="@color/text_dark" />
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Sensor Otomatis"
+                                android:textSize="17sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_dark" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Berdasarkan kelembaban"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_gray" />
+                        </LinearLayout>
 
                         <com.google.android.material.switchmaterial.SwitchMaterial
                             android:id="@+id/switchAutoWatering"
@@ -222,18 +235,88 @@
                             app:thumbTint="@color/surface_white" />
                     </LinearLayout>
 
-                    <com.google.android.material.button.MaterialButton
-                        android:id="@+id/btnManualWater"
+                    <View
                         android:layout_width="match_parent"
-                        android:layout_height="48dp"
-                        android:layout_marginTop="16dp"
-                        android:text="SIRAM MANUAL SEKARANG"
-                        android:textStyle="bold"
-                        android:enabled="true"
-                        android:alpha="1.0"
-                        android:drawableStart="@drawable/ic_water_drop"
-                        android:drawablePadding="8dp"
-                        style="@style/ButtonBlue" />
+                        android:layout_height="1dp"
+                        android:background="#E0E0E0"
+                        android:layout_marginBottom="16dp" />
+
+                    <!-- 2. Mode Terjadwal -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical"
+                        android:layout_marginBottom="16dp">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Waktu Terjadwal"
+                                android:textSize="17sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_dark" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Berdasarkan jam diatur"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_gray" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchScheduleMode"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="false"
+                            app:thumbTint="@color/surface_white" />
+                    </LinearLayout>
+
+                    <View
+                        android:layout_width="match_parent"
+                        android:layout_height="1dp"
+                        android:background="#E0E0E0"
+                        android:layout_marginBottom="16dp" />
+
+                    <!-- 3. Mode Manual -->
+                    <LinearLayout
+                        android:layout_width="match_parent"
+                        android:layout_height="wrap_content"
+                        android:orientation="horizontal"
+                        android:gravity="center_vertical">
+
+                        <LinearLayout
+                            android:layout_width="0dp"
+                            android:layout_height="wrap_content"
+                            android:layout_weight="1"
+                            android:orientation="vertical">
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Siram Manual"
+                                android:textSize="17sp"
+                                android:textStyle="bold"
+                                android:textColor="@color/text_dark" />
+                            <TextView
+                                android:layout_width="wrap_content"
+                                android:layout_height="wrap_content"
+                                android:text="Nyalakan pompa sekarang"
+                                android:textSize="12sp"
+                                android:textColor="@color/text_gray" />
+                        </LinearLayout>
+
+                        <com.google.android.material.switchmaterial.SwitchMaterial
+                            android:id="@+id/switchManualPump"
+                            android:layout_width="wrap_content"
+                            android:layout_height="wrap_content"
+                            android:checked="false"
+                            app:thumbTint="@color/surface_white" />
+                    </LinearLayout>
                 </LinearLayout>
             </com.google.android.material.card.MaterialCardView>
 

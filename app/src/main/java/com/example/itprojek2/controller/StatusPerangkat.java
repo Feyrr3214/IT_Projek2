@@ -15,6 +15,9 @@ public class StatusPerangkat {
     /** Apakah mode penyiraman otomatis aktif */
     public boolean penyiramanOtomatis = false;
 
+    /** Apakah mode penyiraman terjadwal aktif */
+    public boolean modeTerjadwal = false;
+
     /** Kelembaban tanah saat ini (0-100%) */
     public int kelembaban = 0;
 
@@ -35,6 +38,8 @@ public class StatusPerangkat {
     public boolean pumpRunning     = false;
     /** @see #penyiramanOtomatis */
     public boolean autoWatering    = false;
+    /** @see #modeTerjadwal */
+    public boolean scheduleMode    = false;
     /** @see #kelembaban */
     public int     moisture        = 0;
     /** @see #terakhirDisiram */

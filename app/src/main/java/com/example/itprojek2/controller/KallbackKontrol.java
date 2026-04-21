@@ -39,9 +39,9 @@ public class KallbackKontrol {
     }
 
     /**
-     * Callback saat jadwal penyiraman selesai dibaca dari Firebase.
+     * Callback saat daftar jadwal penyiraman selesai dibaca dari Firebase.
      */
-    public interface JadwalListener {
-        void onLoaded(int jam, int menit, int durasiDetik, boolean aktif);
+    public interface DaftarJadwalListener {
+        void onLoaded(java.util.List<ModelJadwal> daftarJadwal);
     }
 }

@@ -39,9 +39,10 @@
                 android:orientation="vertical">
 
                 <TextView
+                    android:id="@+id/tvFormTitle"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Jadwal Penyiraman"
+                    android:text="Form Jadwal"
                     android:textColor="@color/text_dark"
                     android:textSize="16sp"
                     android:textStyle="bold" />
@@ -49,16 +50,10 @@
                 <TextView
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
-                    android:text="Atur waktu penyiraman otomatis harian"
+                    android:text="Atur waktu penyiraman otomatis"
                     android:textColor="@color/text_gray"
                     android:textSize="12sp" />
             </LinearLayout>
-
-            <!-- Toggle Switch Aktif/Nonaktif -->
-            <com.google.android.material.switchmaterial.SwitchMaterial
-                android:id="@+id/switchScheduleEnabled"
-                android:layout_width="wrap_content"
-                android:layout_height="wrap_content" />
         </LinearLayout>
 
         <!-- Divider -->
@@ -67,23 +62,6 @@
             android:layout_height="1dp"
             android:background="@color/background_light"
             android:layout_marginBottom="16dp" />
-
-        <!-- Status Badge -->
-        <TextView
-            android:id="@+id/tvScheduleStatus"
-            android:layout_width="wrap_content"
-            android:layout_height="wrap_content"
-            android:layout_gravity="center_horizontal"
-            android:layout_marginBottom="20dp"
-            android:background="@drawable/shape_badge_inactive"
-            android:paddingStart="16dp"
-            android:paddingEnd="16dp"
-            android:paddingTop="5dp"
-            android:paddingBottom="5dp"
-            android:text="❌  Jadwal Tidak Aktif"
-            android:textColor="@color/danger_red"
-            android:textSize="11sp"
-            android:textStyle="bold" />
 
         <!-- Label Waktu -->
         <TextView

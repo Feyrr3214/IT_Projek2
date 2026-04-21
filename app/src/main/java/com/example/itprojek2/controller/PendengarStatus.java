@@ -114,6 +114,8 @@ public class PendengarStatus {
                 if (nodeKontrol.exists()) {
                     status.autoWatering = status.penyiramanOtomatis
                             = ambilBoolean(nodeKontrol, "autoWatering", false);
+                    status.scheduleMode = status.modeTerjadwal
+                            = ambilBoolean(nodeKontrol, "scheduleMode", false);
                 }
 
                 statusTerakhir = status;
