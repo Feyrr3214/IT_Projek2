@@ -35,7 +35,7 @@ import java.io.InputStream;
 
 public class EditProfileFragment extends Fragment {
 
-    private EditText etName, etPhone;
+    private EditText etName, etEmail;
     private ImageView ivEditAvatar;
     private DatabaseReference dbRef;
     private String uId;
@@ -88,8 +88,8 @@ public class EditProfileFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        etName = view.findViewById(R.id.etName);
-        etPhone = view.findViewById(R.id.etPhone);
+        etName  = view.findViewById(R.id.etName);
+        etEmail = view.findViewById(R.id.etPhone); // id tetap etPhone di XML
         ivEditAvatar = view.findViewById(R.id.ivEditAvatar);
 
         // Ambil uId dari SharedPreferences (fallback ke FirebaseAuth)
@@ -132,20 +132,12 @@ public class EditProfileFragment extends Fragment {
             public void onDataChange(@NonNull DataSnapshot snapshot) {
                 if (!isAdded() || !snapshot.exists()) return;
 
-                String name = snapshot.child("name").getValue(String.class);
-                String phone = snapshot.child("phone").getValue(String.class);
+                String name  = snapshot.child("name").getValue(String.class);
+                String email = snapshot.child("email").getValue(String.class);
                 String avatar = snapshot.child("avatar").getValue(String.class);
 
                 if (name != null) etName.setText(name);
-                if (phone != null) {
-                    String cleanPhone = phone;
-                    if (cleanPhone.startsWith("+62")) {
-                        cleanPhone = cleanPhone.substring(3).trim();
-                    } else if (cleanPhone.startsWith("0")) {
-                        cleanPhone = cleanPhone.substring(1).trim();
-                    }
-                    etPhone.setText(cleanPhone);
-                }
+                if (email != null) etEmail.setText(email);
 
                 if (avatar != null && !avatar.isEmpty()) {
                     try {
@@ -167,25 +159,24 @@ public class EditProfileFragment extends Fragment {
     }
 
     private void saveProfileData(View view) {
-        String name = etName.getText().toString().trim();
-        String phone = etPhone.getText().toString().trim();
+        String name  = etName.getText().toString().trim();
+        String email = etEmail.getText().toString().trim();
 
-        if (name.isEmpty() || phone.isEmpty()) {
-            Toast.makeText(getContext(), "Nama dan Nomor Telepon tidak boleh kosong", Toast.LENGTH_SHORT).show();
+        if (name.isEmpty() || email.isEmpty()) {
+            Toast.makeText(getContext(), "Nama dan Email tidak boleh kosong", Toast.LENGTH_SHORT).show();
             return;
         }
-        
-        // Pakaikan kembali format +62 saat disimpan ke database
-        if (phone.startsWith("0")) {
-            phone = phone.substring(1);
+
+        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
+            Toast.makeText(getContext(), "Format email tidak valid", Toast.LENGTH_SHORT).show();
+            return;
         }
-        phone = "+62 " + phone.replaceAll("[^0-9]", "");
 
         view.findViewById(R.id.btnSaveProfile).setEnabled(false);
 
         java.util.HashMap<String, Object> updates = new java.util.HashMap<>();
         updates.put("name", name);
-        updates.put("phone", phone);
+        updates.put("email", email);
         if (base64Avatar != null) {
             updates.put("avatar", base64Avatar);
         }

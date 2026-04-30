@@ -57,6 +57,27 @@
                     android:inputType="text" />
             </com.google.android.material.textfield.TextInputLayout>
 
+            <!-- Input Email -->
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/tilRegisterEmail"
+                style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginBottom="16dp"
+                android:hint="Email"
+                app:boxCornerRadiusBottomEnd="16dp"
+                app:boxCornerRadiusBottomStart="16dp"
+                app:boxCornerRadiusTopEnd="16dp"
+                app:boxCornerRadiusTopStart="16dp"
+                app:startIconDrawable="@drawable/ic_email">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/etRegisterEmail"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textEmailAddress" />
+            </com.google.android.material.textfield.TextInputLayout>
+
             <!-- Input Password -->
             <com.google.android.material.textfield.TextInputLayout
                 android:id="@+id/tilRegisterPassword"

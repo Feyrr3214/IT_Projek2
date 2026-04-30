@@ -34,20 +34,27 @@ public class RegisterFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         dbRef = FirebaseDatabase.getInstance().getReference("users");
+        com.google.firebase.auth.FirebaseAuth mAuth = com.google.firebase.auth.FirebaseAuth.getInstance();
 
         EditText etName     = view.findViewById(R.id.etRegisterName);
+        EditText etEmail    = view.findViewById(R.id.etRegisterEmail);
         EditText etPassword = view.findViewById(R.id.etRegisterPassword);
         EditText etConfirm  = view.findViewById(R.id.etRegisterConfirmPassword);
         View btnRegister    = view.findViewById(R.id.btnRegister);
 
         btnRegister.setOnClickListener(v -> {
             String name     = etName.getText().toString().trim();
+            String email    = etEmail.getText().toString().trim();
             String password = etPassword.getText().toString().trim();
             String confirm  = etConfirm.getText().toString().trim();
 
             // Validasi input
             if (name.isEmpty()) {
                 etName.setError("Nama tidak boleh kosong");
+                return;
+            }
+            if (email.isEmpty()) {
+                etEmail.setError("Email tidak boleh kosong");
                 return;
             }
             if (password.length() < 6) {
@@ -66,47 +73,45 @@ public class RegisterFragment extends Fragment {
             btnRegister.setEnabled(false);
             Toast.makeText(getContext(), "Mendaftarkan akun...", Toast.LENGTH_SHORT).show();
 
-            // Buat ID unik dari nama (hilangkan spasi dan kecilkan huruf)
-            String usernameId = name.toLowerCase().replaceAll("\\s+", "");
+            mAuth.createUserWithEmailAndPassword(email, password)
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            // Registrasi Auth berhasil
+                            com.google.firebase.auth.FirebaseUser user = mAuth.getCurrentUser();
+                            if (user != null) {
+                                String uid = user.getUid();
+                                
+                                // Simpan data tambahan ke Realtime Database
+                                Map<String, Object> userData = new HashMap<>();
+                                userData.put("name", name);
+                                userData.put("email", email);
+                                userData.put("role", "user");
+                                userData.put("createdAt", com.google.firebase.database.ServerValue.TIMESTAMP);
 
-            // Cek apakah username sudah ada di Realtime Database
-            dbRef.child(usernameId).get().addOnCompleteListener(task -> {
-                if (task.isSuccessful() && task.getResult().exists()) {
-                    // Nama sudah dipakai
-                    btnRegister.setEnabled(true);
-                    etName.setError("Nama sudah dipakai, coba nama lain");
-                    Toast.makeText(getContext(), "Nama sudah terdaftar!", Toast.LENGTH_SHORT).show();
-                } else {
-                    // Nama tersedia, simpan data (termasuk password) ke Realtime Database
-                    Map<String, Object> userData = new HashMap<>();
-                    userData.put("name", name);
-                    userData.put("password", password); // Simpan password langsung
-                    userData.put("role", "user");
-                    userData.put("createdAt", com.google.firebase.database.ServerValue.TIMESTAMP);
+                                dbRef.child(uid).setValue(userData).addOnCompleteListener(dbTask -> {
+                                    btnRegister.setEnabled(true);
+                                    if (dbTask.isSuccessful()) {
+                                        Toast.makeText(getContext(),
+                                                "Pendaftaran berhasil! Silakan login dengan akun baru kamu.",
+                                                Toast.LENGTH_SHORT).show();
 
-                    dbRef.child(usernameId).setValue(userData).addOnCompleteListener(dbTask -> {
-                        btnRegister.setEnabled(true);
-                        if (dbTask.isSuccessful()) {
-                            // Simpan sesi lokal
-                            SharedPreferences prefs = requireActivity()
-                                    .getSharedPreferences("UserSession", Context.MODE_PRIVATE);
-                            prefs.edit()
-                                    .putString("uid", usernameId) // Gunakan usernameId sebagai UID
-                                    .putString("name", name)
-                                    .apply();
+                                        // Logout dulu supaya user harus login manual
+                                        mAuth.signOut();
 
-                            Toast.makeText(getContext(),
-                                    "Pendaftaran berhasil! Selamat datang, " + name + "!",
-                                    Toast.LENGTH_SHORT).show();
-
-                            Navigation.findNavController(v).navigate(R.id.action_register_to_main);
+                                        Navigation.findNavController(v).navigate(R.id.action_register_to_login);
+                                    } else {
+                                        Toast.makeText(getContext(), "Gagal menyimpan data pengguna: " +
+                                                dbTask.getException().getMessage(), Toast.LENGTH_LONG).show();
+                                    }
+                                });
+                            }
                         } else {
-                            Toast.makeText(getContext(), "Gagal daftar: " + 
-                                    dbTask.getException().getMessage(), Toast.LENGTH_LONG).show();
+                            // Gagal registrasi Auth
+                            btnRegister.setEnabled(true);
+                            Toast.makeText(getContext(), "Gagal daftar: " +
+                                    task.getException().getMessage(), Toast.LENGTH_LONG).show();
                         }
                     });
-                }
-            });
         });
 
         // Link ke halaman Login

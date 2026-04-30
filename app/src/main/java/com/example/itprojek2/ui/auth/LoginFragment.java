@@ -33,17 +33,18 @@ public class LoginFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         dbRef = FirebaseDatabase.getInstance().getReference("users");
+        com.google.firebase.auth.FirebaseAuth mAuth = com.google.firebase.auth.FirebaseAuth.getInstance();
 
-        EditText etName = view.findViewById(R.id.etLoginName);
+        EditText etEmail = view.findViewById(R.id.etLoginEmail);
         EditText etPassword = view.findViewById(R.id.etLoginPassword);
         View btnLogin = view.findViewById(R.id.btnLogin);
 
         btnLogin.setOnClickListener(v -> {
-            String name     = etName.getText().toString().trim();
+            String email    = etEmail.getText().toString().trim();
             String password = etPassword.getText().toString().trim();
 
-            if (name.isEmpty()) {
-                etName.setError("Nama tidak boleh kosong");
+            if (email.isEmpty()) {
+                etEmail.setError("Email tidak boleh kosong");
                 return;
             }
             if (password.isEmpty()) {
@@ -57,55 +58,54 @@ public class LoginFragment extends Fragment {
             btnLogin.setEnabled(false);
             Toast.makeText(getContext(), "Memeriksa akun...", Toast.LENGTH_SHORT).show();
 
-            // Buat ID yang sama dengan saat daftar (hilangkan spasi, kecilkan huruf)
-            String usernameId = name.toLowerCase().replaceAll("\\s+", "");
+            mAuth.signInWithEmailAndPassword(email, password)
+                    .addOnCompleteListener(task -> {
+                        if (task.isSuccessful()) {
+                            // Login berhasil
+                            com.google.firebase.auth.FirebaseUser user = mAuth.getCurrentUser();
+                            if (user != null) {
+                                String uid = user.getUid();
+                                
+                                // Ambil nama user dari Realtime Database
+                                dbRef.child(uid).addListenerForSingleValueEvent(new ValueEventListener() {
+                                    @Override
+                                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                                        btnLogin.setEnabled(true);
+                                        String displayName = "Pengguna";
+                                        if (snapshot.exists()) {
+                                            String storedName = snapshot.child("name").getValue(String.class);
+                                            if (storedName != null) {
+                                                displayName = storedName;
+                                            }
+                                        }
 
-            // Cek langsung ke Realtime Database
-            dbRef.child(usernameId).addListenerForSingleValueEvent(new ValueEventListener() {
-                @Override
-                public void onDataChange(@NonNull DataSnapshot snapshot) {
-                    btnLogin.setEnabled(true);
+                                        // Simpan sesi lokal
+                                        SharedPreferences prefs = requireActivity()
+                                                .getSharedPreferences("UserSession", Context.MODE_PRIVATE);
+                                        prefs.edit()
+                                                .putString("uid", uid)
+                                                .putString("name", displayName)
+                                                .apply();
 
-                    if (snapshot.exists()) {
-                        String storedPassword = snapshot.child("password").getValue(String.class);
+                                        Toast.makeText(getContext(),
+                                                "Login berhasil! Selamat datang, " + displayName + "!",
+                                                Toast.LENGTH_SHORT).show();
+                                        navController.navigate(R.id.action_login_to_main);
+                                    }
 
-                        if (storedPassword != null && storedPassword.equals(password)) {
-                            // Password benar
-                            String storedName = snapshot.child("name").getValue(String.class);
-                            String displayName = storedName != null ? storedName : name;
-
-                            // Simpan sesi lokal
-                            SharedPreferences prefs = requireActivity()
-                                    .getSharedPreferences("UserSession", Context.MODE_PRIVATE);
-                            prefs.edit()
-                                    .putString("uid", usernameId) // Gunakan usernameId
-                                    .putString("name", displayName)
-                                    .apply();
-
-                            Toast.makeText(getContext(),
-                                    "Login berhasil! Selamat datang, " + displayName + "!",
-                                    Toast.LENGTH_SHORT).show();
-                            navController.navigate(R.id.action_login_to_main);
+                                    @Override
+                                    public void onCancelled(@NonNull DatabaseError error) {
+                                        btnLogin.setEnabled(true);
+                                        Toast.makeText(getContext(), "Gagal mengambil data: " + error.getMessage(), Toast.LENGTH_SHORT).show();
+                                    }
+                                });
+                            }
                         } else {
-                            // Password salah
-                            etPassword.setError("Password salah");
-                            Toast.makeText(getContext(), "Password salah.", Toast.LENGTH_SHORT).show();
+                            // Login gagal
+                            btnLogin.setEnabled(true);
+                            Toast.makeText(getContext(), "Email atau password salah", Toast.LENGTH_SHORT).show();
                         }
-                    } else {
-                        // User tidak ditemukan
-                        etName.setError("Akun tidak ditemukan");
-                        Toast.makeText(getContext(), "Akun belum terdaftar.", Toast.LENGTH_LONG).show();
-                    }
-                }
-
-                @Override
-                public void onCancelled(@NonNull DatabaseError error) {
-                    btnLogin.setEnabled(true);
-                    Toast.makeText(getContext(),
-                            "Gagal login: " + error.getMessage(),
-                            Toast.LENGTH_SHORT).show();
-                }
-            });
+                    });
         });
 
         // Link ke Register

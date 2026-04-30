@@ -81,12 +81,12 @@ public class ProfileFragment extends Fragment {
                 if (!isAdded() || snapshot == null) return;
 
                 String name  = snapshot.child("name").getValue(String.class);
-                String phone = snapshot.child("phone").getValue(String.class);
+                String email = snapshot.child("email").getValue(String.class);
                 String avatar = snapshot.child("avatar").getValue(String.class);
 
                 android.widget.TextView tvUserName  = view.findViewById(R.id.tvUserName);
                 android.widget.TextView tvAboutName = view.findViewById(R.id.tvAboutName);
-                android.widget.TextView tvAboutPhone = view.findViewById(R.id.tvAboutPhone);
+                android.widget.TextView tvAboutEmail = view.findViewById(R.id.tvAboutEmail);
                 android.widget.TextView tvHeaderName = view.findViewById(R.id.tvHeaderName);
 
                 if (avatar != null && !avatar.isEmpty()) {
@@ -117,14 +117,8 @@ public class ProfileFragment extends Fragment {
                     String firstName = name.contains(" ") ? name.substring(0, name.indexOf(" ")) : name;
                     tvHeaderName.setText("Halo, " + firstName);
                 }
-                if (phone != null) {
-                    String formattedPhone = phone;
-                    // Format permintaan: +62 85849566409 (hanya spasi setelah +62)
-                    if (phone.startsWith("+62") && phone.length() > 3) {
-                        String rest = phone.substring(3).replaceAll("[^0-9]", "");
-                        formattedPhone = "+62 " + rest;
-                    }
-                    tvAboutPhone.setText(formattedPhone);
+                if (email != null) {
+                    tvAboutEmail.setText(email);
                 }
             }
 

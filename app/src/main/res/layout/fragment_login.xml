@@ -36,25 +36,25 @@
                 android:textStyle="bold"
                 android:layout_marginBottom="32dp" />
 
-            <!-- Input Nama -->
+            <!-- Input Email -->
             <com.google.android.material.textfield.TextInputLayout
-                android:id="@+id/tilLoginName"
+                android:id="@+id/tilLoginEmail"
                 style="@style/Widget.MaterialComponents.TextInputLayout.OutlinedBox"
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
                 android:layout_marginBottom="20dp"
-                android:hint="Nama"
+                android:hint="Email"
                 app:boxCornerRadiusBottomEnd="16dp"
                 app:boxCornerRadiusBottomStart="16dp"
                 app:boxCornerRadiusTopEnd="16dp"
                 app:boxCornerRadiusTopStart="16dp"
-                app:startIconDrawable="@drawable/ic_person">
+                app:startIconDrawable="@drawable/ic_email">
 
                 <com.google.android.material.textfield.TextInputEditText
-                    android:id="@+id/etLoginName"
+                    android:id="@+id/etLoginEmail"
                     android:layout_width="match_parent"
                     android:layout_height="wrap_content"
-                    android:inputType="text" />
+                    android:inputType="textEmailAddress" />
             </com.google.android.material.textfield.TextInputLayout>
 
             <!-- Input Password -->
