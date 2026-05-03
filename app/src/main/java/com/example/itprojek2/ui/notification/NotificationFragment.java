@@ -34,24 +34,24 @@ public class NotificationFragment extends Fragment {
         // Header Hari Ini
         notifList.add(new NotificationItem("HARI INI"));
         notifList.add(new NotificationItem(
-                "Kelembaban Tanah Kritis",
-                "Kelembaban tanah turun hingga 25%. Pompa air otomatis telah diaktifkan.",
-                NotificationItem.Type.CRITICAL));
+                "🍇 Tanah Kering!",
+                "Kelembaban 25% — di bawah batas minimum 30%. Segera lakukan penyiraman!",
+                NotificationItem.Type.WARNING));
         notifList.add(new NotificationItem(
-                "Penyiraman Selesai",
-                "Sistem berhasil menyiram selama 10 menit. Kelembaban saat ini 65%.",
+                "Penyiraman Jadwal Selesai",
+                "Jadwal penyiraman pagi berhasil dieksekusi. Kelembaban saat ini 60%.",
                 NotificationItem.Type.SUCCESS));
 
         // Header Kemarin
         notifList.add(new NotificationItem("KEMARIN"));
         notifList.add(new NotificationItem(
-                "Penyiraman Otomatis Aktif",
-                "Pompa air menyala karena kelembaban tanah turun hingga 28%.",
-                NotificationItem.Type.WARNING));
+                "💧 Tanah Terlalu Basah!",
+                "Kelembaban 85% — melebihi batas maksimum 80%. Kurangi air atau periksa drainase.",
+                NotificationItem.Type.CRITICAL));
         notifList.add(new NotificationItem(
-                "Kelembaban Normal",
-                "Kelembaban tanah telah kembali ke level normal (55%).",
-                NotificationItem.Type.INFO));
+                "Sensor Offline",
+                "Tidak dapat membaca data dari sensor kelembaban kebun.",
+                NotificationItem.Type.CRITICAL));
 
         binding.rvNotifications.setLayoutManager(new LinearLayoutManager(getContext()));
         binding.rvNotifications.setAdapter(new NotificationAdapter(notifList));

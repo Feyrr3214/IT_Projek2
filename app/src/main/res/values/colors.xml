@@ -13,4 +13,6 @@
     <color name="progress_track">#E5E5EA</color>
     <color name="info_blue">#007AFF</color>
     <color name="divider">#C6C6C8</color>
+    <color name="text_purple_dark">#413888</color>
+    <color name="text_grey_dark">#3C3C3C</color>
 </resources>
