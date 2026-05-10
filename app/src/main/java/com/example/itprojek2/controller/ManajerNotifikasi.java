@@ -8,144 +8,299 @@ import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
 import android.util.Log;
+import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
 import com.example.itprojek2.R;
+import com.google.firebase.database.DataSnapshot;
+import com.google.firebase.database.DatabaseError;
+import com.google.firebase.database.DatabaseReference;
+import com.google.firebase.database.FirebaseDatabase;
+import com.google.firebase.database.Query;
+import com.google.firebase.database.ValueEventListener;
+import java.text.SimpleDateFormat;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Locale;
+import java.util.Map;
 
 /**
- * ManajerNotifikasi — Mengelola notifikasi sistem Android untuk kondisi kelembaban.
+ * ManajerNotifikasi — Mengelola notifikasi sistem Android dan penyimpanan event ke Firebase.
  *
- * Notifikasi yang dikirim:
+ * Notifikasi sistem Android:
  *   1. 🌵 TANAH KERING  → saat kelembaban < batas minimum
  *   2. 💧 TANAH TERLALU BASAH → saat kelembaban > batas maksimum
  *
- * Fitur anti-spam (cooldown):
- *   Notifikasi yang sama tidak akan dikirim lagi dalam 10 menit
- *   untuk mencegah banjir notif saat sensor terbaca berulang.
+ * Event Firebase (node: devices/{deviceId}/notifications/{pushId}):
+ *   - Semua event di atas + pompa nyala/mati, perangkat online/offline
  *
- * Syarat tampil: Pastikan izin POST_NOTIFICATIONS sudah diberikan
- *   (otomatis diminta di HomeFragment untuk Android 13+).
+ * Fitur anti-spam (cooldown):
+ *   Notifikasi yang sama tidak akan dikirim lagi dalam 30 detik.
  */
 public class ManajerNotifikasi {
 
     private static final String TAG = "ManajerNotifikasi";
 
-    // Identitas channel notifikasi (daftarkan sekali saat app pertama buka)
+    // Identitas channel notifikasi Android
     public static final String ID_SALURAN = "saluran_kelembaban_irigasi";
     private static final String NAMA_SALURAN = "Peringatan Kelembaban Tanah";
     private static final String DESC_SALURAN = "Notifikasi saat tanah terlalu kering atau terlalu basah";
 
-    // ID unik setiap notifikasi
+    // ID unik setiap notifikasi sistem Android
     private static final int ID_NOTIF_KERING = 1001;
     private static final int ID_NOTIF_BASAH  = 1002;
 
-    // Key SharedPreferences untuk menyimpan waktu notif terakhir (anti-spam)
+    // Key SharedPreferences cooldown
     private static final String PREFS_NOTIF   = "NotifikasiKelembaban";
     private static final String KEY_KERING    = "waktu_notif_kering";
     private static final String KEY_BASAH     = "waktu_notif_basah";
 
-    // Cooldown minimum antar notifikasi yang sama (30 detik = 30.000 ms)
     private static final long COOLDOWN_MS = 30 * 1000L;
+    private static final int  BATAS_NOTIF = 100; // Maksimal notif disimpan di Firebase
 
     private final Context context;
+    private DatabaseReference refNotifications; // nullable jika deviceId tidak disediakan
 
+    // ─── Konstruktor ─────────────────────────────────────────────────────────
+
+    /** Konstruktor tanpa Firebase (hanya notif sistem Android, backward compat) */
     public ManajerNotifikasi(Context context) {
         this.context = context.getApplicationContext();
         buatSaluranNotifikasi();
     }
 
-    /**
-     * Daftarkan channel notifikasi ke sistem Android.
-     * Diperlukan untuk Android 8.0 (Oreo/API 26) ke atas.
-     * Aman dipanggil berulang kali — sistem akan mengabaikan jika sudah ada.
-     */
+    /** Konstruktor dengan Firebase — event disimpan ke Firebase juga */
+    public ManajerNotifikasi(Context context, String deviceId) {
+        this.context = context.getApplicationContext();
+        buatSaluranNotifikasi();
+        if (deviceId != null && !deviceId.isEmpty()) {
+            refNotifications = FirebaseDatabase.getInstance()
+                    .getReference("devices")
+                    .child(deviceId)
+                    .child("notifications");
+        }
+    }
+
+    // ─── Setup Channel ────────────────────────────────────────────────────────
+
     public void buatSaluranNotifikasi() {
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.O) {
             NotificationChannel channel = new NotificationChannel(
-                    ID_SALURAN,
-                    NAMA_SALURAN,
-                    NotificationManager.IMPORTANCE_HIGH
-            );
+                    ID_SALURAN, NAMA_SALURAN, NotificationManager.IMPORTANCE_HIGH);
             channel.setDescription(DESC_SALURAN);
             channel.enableVibration(true);
-
             NotificationManager manager =
                     (NotificationManager) context.getSystemService(Context.NOTIFICATION_SERVICE);
             if (manager != null) {
                 manager.createNotificationChannel(channel);
-                Log.d(TAG, "Saluran notifikasi didaftarkan.");
             }
         }
     }
 
+    // ─── Cek Kelembaban ───────────────────────────────────────────────────────
+
     /**
      * Periksa nilai kelembaban dan kirim notifikasi jika perlu.
-     *
-     * @param kelembaban  Nilai kelembaban saat ini dari sensor (0–100%)
-     * @param batasMin    Batas minimum — notifikasi kering jika kelembaban di bawah ini
-     * @param batasMax    Batas maksimum — notifikasi basah jika kelembaban di atas ini
+     * Otomatis simpan ke Firebase jika deviceId sudah diset.
      */
     public void cekDanKirimNotifikasi(int kelembaban, int batasMin, int batasMax) {
-        if (kelembaban <= 0) return; // Abaikan jika data 0% (kemungkinan sensor belum siap/tercabut)
+        if (kelembaban <= 0) return;
 
         if (kelembaban < batasMin) {
             kirimNotifikasiKering(kelembaban, batasMin);
         } else if (kelembaban > batasMax) {
             kirimNotifikasiBasah(kelembaban, batasMax);
         }
-        // Jika dalam rentang normal, tidak ada notifikasi
     }
 
-    /**
-     * Kirim notifikasi peringatan tanah kering (kelembaban terlalu rendah).
-     */
     private void kirimNotifikasiKering(int kelembaban, int batasMin) {
-        if (!sudahCooldown(KEY_KERING)) {
-            Log.d(TAG, "Notifikasi kering diabaikan (cooldown aktif).");
-            return;
-        }
+        if (!sudahCooldown(KEY_KERING)) return;
 
         String judul = "🍇 Tanah Kering!";
         String isi   = "Kelembaban " + kelembaban + "% — di bawah batas minimum " + batasMin
                      + "%. Segera lakukan penyiraman!";
 
-        kirim(ID_NOTIF_KERING, judul, isi, R.drawable.ic_water_drop,
-              new int[]{255, 230, 115, 0}); // Warna LED: Kuning-oranye
+        kirim(ID_NOTIF_KERING, judul, isi, R.drawable.ic_water_drop, new int[]{255, 230, 115, 0});
+        simpanKeFirebase(judul, isi, "WARNING");
         simpanWaktuNotif(KEY_KERING);
-        Log.d(TAG, "✅ Notifikasi KERING dikirim: " + kelembaban + "%");
+        Log.d(TAG, "Notifikasi KERING dikirim: " + kelembaban + "%");
     }
 
-    /**
-     * Kirim notifikasi peringatan tanah terlalu basah (kelembaban terlalu tinggi).
-     */
     private void kirimNotifikasiBasah(int kelembaban, int batasMax) {
-        if (!sudahCooldown(KEY_BASAH)) {
-            Log.d(TAG, "Notifikasi basah diabaikan (cooldown aktif).");
-            return;
-        }
+        if (!sudahCooldown(KEY_BASAH)) return;
 
-        String judul = "🍇 Tanah Terlalu Basah!";
+        String judul = "💧 Tanah Terlalu Basah!";
         String isi   = "Kelembaban " + kelembaban + "% — melebihi batas maksimum " + batasMax
                      + "%. Kurangi air atau periksa drainase.";
 
-        kirim(ID_NOTIF_BASAH, judul, isi, R.drawable.ic_alert_triangle,
-              new int[]{255, 0, 122, 255}); // Warna LED: Biru
+        kirim(ID_NOTIF_BASAH, judul, isi, R.drawable.ic_alert_triangle, new int[]{255, 0, 122, 255});
+        simpanKeFirebase(judul, isi, "CRITICAL");
         simpanWaktuNotif(KEY_BASAH);
-        Log.d(TAG, "✅ Notifikasi BASAH dikirim: " + kelembaban + "%");
+        Log.d(TAG, "Notifikasi BASAH dikirim: " + kelembaban + "%");
+    }
+
+    // ─── Event Manual (dipanggil dari luar) ──────────────────────────────────
+
+    /** Simpan event pompa nyala ke Firebase */
+    public void eventPompaMenyala(int kelembaban, String mode) {
+        String judul = "💧 Penyiraman Dimulai";
+        String isi;
+        switch (mode) {
+            case "auto":
+                isi = "Penyiraman otomatis aktif — kelembaban saat ini " + kelembaban + "%.";
+                break;
+            case "schedule":
+                isi = "Penyiraman terjadwal dimulai — kelembaban saat ini " + kelembaban + "%.";
+                break;
+            default:
+                isi = "Penyiraman manual dimulai — kelembaban saat ini " + kelembaban + "%.";
+        }
+        simpanKeFirebase(judul, isi, "INFO");
+    }
+
+    /** Simpan event pompa mati ke Firebase */
+    public void eventPompaMati(int durasiDetik, int kelembabanAkhir) {
+        String judul = "✅ Penyiraman Selesai";
+        String isi   = "Penyiraman selesai, durasi " + durasiDetik + " detik. "
+                     + "Kelembaban akhir " + kelembabanAkhir + "%.";
+        simpanKeFirebase(judul, isi, "SUCCESS");
+    }
+
+    /** Simpan event perangkat offline ke Firebase */
+    public void eventPerangkatOffline() {
+        String judul = "⚠️ Perangkat Tidak Merespons";
+        String isi   = "ESP32 tidak mengirim data lebih dari 30 detik. Periksa koneksi WiFi.";
+        simpanKeFirebase(judul, isi, "CRITICAL");
+    }
+
+    /** Simpan event perangkat kembali online ke Firebase */
+    public void eventPerangkatOnline() {
+        String judul = "🟢 Perangkat Terhubung";
+        String isi   = "Perangkat ESP32 kembali online dan siap digunakan.";
+        simpanKeFirebase(judul, isi, "SUCCESS");
+    }
+
+    /** Simpan event perubahan batas kelembaban ke Firebase */
+    public void eventBatasKelembapanDiubah(int min, int max) {
+        String judul = "⚙️ Batas Kelembaban Diubah";
+        String isi   = "Batas kelembaban diperbarui: Min " + min + "% — Max " + max + "%.";
+        simpanKeFirebase(judul, isi, "INFO");
+    }
+
+    // ─── Baca Notifikasi dari Firebase ────────────────────────────────────────
+
+    public interface NotifListener {
+        void onLoaded(List<NotifItem> items);
+        void onError(String pesan);
+    }
+
+    public static class NotifItem {
+        public String key;
+        public String title;
+        public String message;
+        public String type;   // "WARNING" | "CRITICAL" | "SUCCESS" | "INFO"
+        public long timestamp;
+        public String date;
+
+        public NotifItem() {}
+    }
+
+    private ValueEventListener listenerFirebase;
+    private Query refListenTarget;
+
+    /**
+     * Mulai listen notifikasi dari Firebase secara real-time.
+     */
+    public void mulaiListen(NotifListener listener) {
+        if (refNotifications == null) {
+            listener.onError("Device ID belum diset.");
+            return;
+        }
+        stopListen();
+        listenerFirebase = new ValueEventListener() {
+            @Override
+            public void onDataChange(@NonNull DataSnapshot snapshot) {
+                List<NotifItem> list = new ArrayList<>();
+                for (DataSnapshot child : snapshot.getChildren()) {
+                    try {
+                        NotifItem item = new NotifItem();
+                        item.key       = child.getKey();
+                        item.title     = ambilString(child, "title", "-");
+                        item.message   = ambilString(child, "message", "-");
+                        item.type      = ambilString(child, "type", "INFO");
+                        item.timestamp = ambilLong(child, "timestamp", 0L);
+                        item.date      = ambilString(child, "date", "-");
+                        list.add(0, item); // Paling baru di atas
+                    } catch (Exception e) {
+                        Log.w(TAG, "Gagal parse notif: " + e.getMessage());
+                    }
+                }
+                listener.onLoaded(list);
+            }
+
+            @Override
+            public void onCancelled(@NonNull DatabaseError error) {
+                listener.onError(error.getMessage());
+            }
+        };
+        refListenTarget = refNotifications.limitToLast(BATAS_NOTIF);
+        refListenTarget.addValueEventListener(listenerFirebase);
+    }
+
+    /** Hentikan listener notifikasi */
+    public void stopListen() {
+        if (listenerFirebase != null && refListenTarget != null) {
+            refListenTarget.removeEventListener(listenerFirebase);
+            listenerFirebase = null;
+        }
+    }
+
+    /** Hapus semua notifikasi dari Firebase */
+    public void hapusSemua(Runnable onSelesai) {
+        if (refNotifications == null) return;
+        refNotifications.removeValue()
+                .addOnSuccessListener(unused -> { if (onSelesai != null) onSelesai.run(); })
+                .addOnFailureListener(e -> Log.e(TAG, "Gagal hapus semua notif: " + e.getMessage()));
+    }
+
+    /** Hapus satu notifikasi dari Firebase berdasarkan push key */
+    public void hapus(String pushKey, Runnable onSelesai) {
+        if (refNotifications == null || pushKey == null) return;
+        refNotifications.child(pushKey).removeValue()
+                .addOnSuccessListener(unused -> { if (onSelesai != null) onSelesai.run(); })
+                .addOnFailureListener(e -> Log.e(TAG, "Gagal hapus notif: " + e.getMessage()));
+    }
+
+    // ─── Internal ─────────────────────────────────────────────────────────────
+
+    /**
+     * Simpan event notifikasi ke Firebase Realtime Database.
+     */
+    private void simpanKeFirebase(String judul, String isi, String tipe) {
+        if (refNotifications == null) return;
+        long now = System.currentTimeMillis();
+        String dateStr = new SimpleDateFormat("dd/MM/yyyy HH:mm", Locale.getDefault())
+                .format(new Date(now));
+
+        Map<String, Object> data = new HashMap<>();
+        data.put("title", judul);
+        data.put("message", isi);
+        data.put("type", tipe);
+        data.put("timestamp", now);
+        data.put("date", dateStr);
+
+        refNotifications.push().setValue(data)
+                .addOnSuccessListener(unused -> Log.d(TAG, "Notif disimpan ke Firebase: " + judul))
+                .addOnFailureListener(e -> Log.e(TAG, "Gagal simpan notif: " + e.getMessage()));
     }
 
     /**
-     * Bangun dan tampilkan notifikasi ke sistem Android.
-     *
-     * @param notifId  ID unik notifikasi
-     * @param judul    Judul notifikasi
-     * @param isi      Isi teks notifikasi
-     * @param ikonRes  Resource drawable untuk ikon kecil notif
-     * @param warnArgb Array [alpha, red, green, blue] untuk warna LED notifikasi
+     * Bangun dan tampilkan notifikasi sistem Android.
      */
     private void kirim(int notifId, String judul, String isi, int ikonRes, int[] warnArgb) {
         try {
-            // Intent untuk membuka aplikasi saat notifikasi ditekan
             Intent intentBuka = context.getPackageManager()
                     .getLaunchIntentForPackage(context.getPackageName());
             if (intentBuka != null) {
@@ -154,8 +309,7 @@ public class ManajerNotifikasi {
 
             PendingIntent pendingIntent = PendingIntent.getActivity(
                     context, notifId, intentBuka != null ? intentBuka : new Intent(),
-                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE
-            );
+                    PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
 
             NotificationCompat.Builder builder = new NotificationCompat.Builder(context, ID_SALURAN)
                     .setSmallIcon(ikonRes)
@@ -167,7 +321,6 @@ public class ManajerNotifikasi {
                     .setContentIntent(pendingIntent)
                     .setVibrate(new long[]{0, 300, 200, 300});
 
-            // Warna LED notifikasi (warnArgb: [alpha, r, g, b])
             if (warnArgb != null && warnArgb.length == 4) {
                 builder.setColor(android.graphics.Color.argb(
                         warnArgb[0], warnArgb[1], warnArgb[2], warnArgb[3]));
@@ -176,12 +329,11 @@ public class ManajerNotifikasi {
 
             NotificationManagerCompat managerCompat = NotificationManagerCompat.from(context);
 
-            // Cek izin (Android 13+)
             if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU) {
                 if (androidx.core.content.ContextCompat.checkSelfPermission(context,
                         android.Manifest.permission.POST_NOTIFICATIONS)
                         != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    Log.w(TAG, "Izin POST_NOTIFICATIONS belum diberikan, notifikasi tidak dapat ditampilkan.");
+                    Log.w(TAG, "Izin POST_NOTIFICATIONS belum diberikan.");
                     return;
                 }
             }
@@ -189,42 +341,45 @@ public class ManajerNotifikasi {
             managerCompat.notify(notifId, builder.build());
 
         } catch (Exception e) {
-            Log.e(TAG, "Gagal menampilkan notifikasi: " + e.getMessage());
+            Log.e(TAG, "Gagal tampilkan notifikasi: " + e.getMessage());
         }
     }
 
-    /**
-     * Cek apakah cooldown untuk notifikasi tertentu sudah lewat.
-     *
-     * @param kunciPrefs  Key SharedPreferences untuk menyimpan waktu terakhir notif
-     * @return true jika boleh kirim notifikasi (cooldown sudah lewat), false jika belum
-     */
     private boolean sudahCooldown(String kunciPrefs) {
         SharedPreferences prefs = context.getSharedPreferences(PREFS_NOTIF, Context.MODE_PRIVATE);
         long waktuTerakhir = prefs.getLong(kunciPrefs, 0L);
-        long sekarang = System.currentTimeMillis();
-        return (sekarang - waktuTerakhir) >= COOLDOWN_MS;
+        return (System.currentTimeMillis() - waktuTerakhir) >= COOLDOWN_MS;
     }
 
-    /**
-     * Simpan waktu notifikasi terakhir dikirim ke SharedPreferences.
-     */
     private void simpanWaktuNotif(String kunciPrefs) {
         context.getSharedPreferences(PREFS_NOTIF, Context.MODE_PRIVATE)
-                .edit()
-                .putLong(kunciPrefs, System.currentTimeMillis())
-                .apply();
+                .edit().putLong(kunciPrefs, System.currentTimeMillis()).apply();
     }
 
-    /**
-     * Reset cooldown semua notifikasi (berguna saat debugging/testing).
-     */
     public void resetCooldown() {
         context.getSharedPreferences(PREFS_NOTIF, Context.MODE_PRIVATE)
-                .edit()
-                .remove(KEY_KERING)
-                .remove(KEY_BASAH)
-                .apply();
-        Log.d(TAG, "Cooldown notifikasi direset.");
+                .edit().remove(KEY_KERING).remove(KEY_BASAH).apply();
+    }
+
+    // ─── Helpers ─────────────────────────────────────────────────────────────
+
+    private String ambilString(DataSnapshot snap, String key, String def) {
+        DataSnapshot c = snap.child(key);
+        if (c.exists() && c.getValue() != null) return c.getValue().toString();
+        return def;
+    }
+
+    private long ambilLong(DataSnapshot snap, String key, long def) {
+        DataSnapshot c = snap.child(key);
+        if (c.exists() && c.getValue() != null) {
+            try {
+                Object val = c.getValue();
+                if (val instanceof Long) return (Long) val;
+                if (val instanceof Integer) return ((Integer) val).longValue();
+                if (val instanceof Double) return ((Double) val).longValue();
+                return Long.parseLong(val.toString());
+            } catch (Exception e) { return def; }
+        }
+        return def;
     }
 }

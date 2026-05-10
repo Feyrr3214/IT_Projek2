@@ -52,16 +52,43 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
         holder.tvMessage.setText(item.getMessage());
         holder.tvDate.setText(item.getDate());
 
+        // Warna dot berdasarkan tipe
+        setDotColor(holder, item.getType());
+
+        // Highlight jika dipilih
         if (selectionMode && item.isSelected()) {
             holder.card.setStrokeColor(0xFF7B6ED6);
             holder.card.setStrokeWidth(4);
+            holder.card.setCardBackgroundColor(0xFFF3F0FF);
         } else {
             holder.card.setStrokeWidth(0);
+            holder.card.setCardBackgroundColor(Color.WHITE);
         }
 
         holder.card.setOnClickListener(v -> {
             if (listener != null) listener.onItemClick(holder.getAdapterPosition());
         });
+    }
+
+    /**
+     * Set warna dot indikator berdasarkan tipe aktivitas.
+     * pump=biru, auto=hijau, schedule=ungu, threshold=oranye, mode=abu, offline=merah
+     */
+    private void setDotColor(ViewHolder holder, String type) {
+        int color;
+        if (type == null) type = "pump";
+        switch (type) {
+            case "auto":      color = 0xFF5ED5A8; break; // Hijau (otomatis)
+            case "schedule":  color = 0xFF7B6ED6; break; // Ungu (terjadwal)
+            case "threshold": color = 0xFFF5A623; break; // Oranye (batas kelembaban)
+            case "mode":      color = 0xFF888888; break; // Abu (mode)
+            case "offline":   color = 0xFFFF6969; break; // Merah (offline)
+            default:          color = 0xFF5B8CFF; break; // Biru (pompa manual)
+        }
+        if (holder.viewDot != null) {
+            holder.viewDot.setBackgroundTintList(
+                    android.content.res.ColorStateList.valueOf(color));
+        }
     }
 
     @Override
@@ -72,12 +99,14 @@ public class HistoryAdapter extends RecyclerView.Adapter<HistoryAdapter.ViewHold
     static class ViewHolder extends RecyclerView.ViewHolder {
         MaterialCardView card;
         TextView tvMessage, tvDate;
+        View viewDot;
 
         ViewHolder(View view) {
             super(view);
-            card = (MaterialCardView) view;
+            card      = (MaterialCardView) view;
             tvMessage = view.findViewById(R.id.tvMessage);
-            tvDate = view.findViewById(R.id.tvDate);
+            tvDate    = view.findViewById(R.id.tvDate);
+            viewDot   = view.findViewById(R.id.viewDot);
         }
     }
 }

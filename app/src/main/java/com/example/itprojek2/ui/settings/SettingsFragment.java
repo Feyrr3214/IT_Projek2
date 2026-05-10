@@ -15,6 +15,9 @@ public class SettingsFragment extends Fragment {
     private FragmentSettingsBinding binding;
 
     private com.example.itprojek2.controller.IrrigationController controller;
+    private com.example.itprojek2.controller.ManajerRiwayat manajerRiwayat;
+    private com.example.itprojek2.controller.ManajerNotifikasi manajerNotifikasi;
+    private static final String DEVICE_ID = "esp32_01";
 
     @Nullable
     @Override
@@ -22,7 +25,9 @@ public class SettingsFragment extends Fragment {
                              @Nullable ViewGroup container,
                              @Nullable Bundle savedInstanceState) {
         binding = FragmentSettingsBinding.inflate(inflater, container, false);
-        controller = new com.example.itprojek2.controller.IrrigationController("esp32_01");
+        controller = new com.example.itprojek2.controller.IrrigationController(DEVICE_ID);
+        manajerRiwayat = new com.example.itprojek2.controller.ManajerRiwayat(DEVICE_ID);
+        manajerNotifikasi = new com.example.itprojek2.controller.ManajerNotifikasi(requireContext(), DEVICE_ID);
         return binding.getRoot();
     }
 
@@ -123,6 +128,13 @@ public class SettingsFragment extends Fragment {
                     if (isAdded()) {
                         android.widget.Toast.makeText(getContext(),
                                 "✓ Batas kelembaban berhasil disimpan!", android.widget.Toast.LENGTH_SHORT).show();
+                        // Simpan ke riwayat & notifikasi Firebase
+                        if (manajerRiwayat != null) {
+                            manajerRiwayat.simpan("Batas kelembaban diperbarui: Min " + minVal + "% — Max " + maxVal + "%.", "threshold");
+                        }
+                        if (manajerNotifikasi != null) {
+                            manajerNotifikasi.eventBatasKelembapanDiubah(minVal, maxVal);
+                        }
                         dialog.dismiss();
                     }
                 }

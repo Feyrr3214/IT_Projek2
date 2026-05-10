@@ -5,8 +5,10 @@
     android:layout_width="match_parent"
     android:layout_height="wrap_content"
     android:layout_marginBottom="12dp"
-    app:cardCornerRadius="12dp"
-    app:cardElevation="2dp"
+    app:cardCornerRadius="16dp"
+    app:cardElevation="0dp"
+    app:strokeWidth="1dp"
+    app:strokeColor="#EAEAEA"
     app:cardBackgroundColor="@color/surface_white">
 
     <LinearLayout
@@ -16,13 +18,19 @@
         android:orientation="horizontal"
         android:padding="16dp">
 
-        <ImageView
-            android:id="@+id/ivNotifIcon"
-            android:layout_width="40dp"
-            android:layout_height="40dp"
-            android:src="@drawable/ic_water_drop"
-            android:padding="8dp" />
+        <!-- Icon Container -->
+        <FrameLayout
+            android:layout_width="48dp"
+            android:layout_height="48dp">
+            <ImageView
+                android:id="@+id/ivNotifIcon"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:src="@drawable/ic_water_drop"
+                android:padding="12dp" />
+        </FrameLayout>
 
+        <!-- Konten tengah: judul + deskripsi -->
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -30,13 +38,33 @@
             android:layout_weight="1"
             android:orientation="vertical">
 
-            <TextView
-                android:id="@+id/tvNotifTitle"
+            <LinearLayout
                 android:layout_width="match_parent"
                 android:layout_height="wrap_content"
-                android:textColor="@color/text_dark"
-                android:textSize="14sp"
-                android:textStyle="bold" />
+                android:orientation="horizontal"
+                android:gravity="center_vertical">
+                
+                <TextView
+                    android:id="@+id/tvNotifTitle"
+                    android:layout_width="0dp"
+                    android:layout_height="wrap_content"
+                    android:layout_weight="1"
+                    android:textColor="@color/text_dark"
+                    android:textSize="15sp"
+                    android:fontFamily="sans-serif-medium"
+                    android:textStyle="bold" />
+
+                <!-- Waktu di kanan -->
+                <TextView
+                    android:id="@+id/tvNotifTime"
+                    android:layout_width="wrap_content"
+                    android:layout_height="wrap_content"
+                    android:layout_marginStart="8dp"
+                    android:textColor="@color/text_gray"
+                    android:textSize="11sp"
+                    android:gravity="end"
+                    android:visibility="gone" />
+            </LinearLayout>
 
             <TextView
                 android:id="@+id/tvNotifDesc"
@@ -44,7 +72,9 @@
                 android:layout_height="wrap_content"
                 android:layout_marginTop="4dp"
                 android:textColor="@color/text_gray"
-                android:textSize="12sp" />
+                android:textSize="13sp"
+                android:lineSpacingMultiplier="1.2" />
         </LinearLayout>
+
     </LinearLayout>
 </com.google.android.material.card.MaterialCardView>

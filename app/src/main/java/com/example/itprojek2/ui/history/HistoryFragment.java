@@ -4,10 +4,12 @@ import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
+import com.example.itprojek2.controller.ManajerRiwayat;
 import com.example.itprojek2.databinding.FragmentHistoryBinding;
 import java.util.ArrayList;
 import java.util.Iterator;
@@ -15,9 +17,12 @@ import java.util.List;
 
 public class HistoryFragment extends Fragment {
 
+    private static final String DEVICE_ID = "esp32_01";
+
     private FragmentHistoryBinding binding;
     private HistoryAdapter adapter;
     private List<HistoryItem> historyList;
+    private ManajerRiwayat manajerRiwayat;
 
     @Nullable
     @Override
@@ -33,43 +38,36 @@ public class HistoryFragment extends Fragment {
         super.onViewCreated(view, savedInstanceState);
 
         historyList = new ArrayList<>();
-        historyList.add(new HistoryItem(1, "Jangan lupakan untuk siram tanaman ya!", "17/3/2026"));
-        historyList.add(new HistoryItem(2, "Kelembaban tanah hari ini pada 30% mengaktifkan penyiraman otomatis", "17/3/2026"));
-        historyList.add(new HistoryItem(3, "Pompa air mati, kelembaban kembali normal 65%", "16/3/2026"));
-
         adapter = new HistoryAdapter(historyList);
         binding.rvHistory.setLayoutManager(new LinearLayoutManager(getContext()));
         binding.rvHistory.setAdapter(adapter);
 
+        // Inisialisasi controller riwayat Firebase
+        manajerRiwayat = new ManajerRiwayat(DEVICE_ID);
+
         // Load nama user dari sesi
-        android.content.SharedPreferences prefs = requireActivity().getSharedPreferences("UserSession", android.content.Context.MODE_PRIVATE);
+        android.content.SharedPreferences prefs =
+                requireActivity().getSharedPreferences("UserSession", android.content.Context.MODE_PRIVATE);
         String name = prefs.getString("name", "User");
         String firstName = name.contains(" ") ? name.substring(0, name.indexOf(" ")) : name;
         binding.tvHeaderName.setText("Halo, " + firstName);
 
+        // Navigasi ke notifikasi
         binding.ivNotification.setOnClickListener(v ->
-                androidx.navigation.Navigation.findNavController(v).navigate(com.example.itprojek2.R.id.notificationFragment));
+                androidx.navigation.Navigation.findNavController(v)
+                        .navigate(com.example.itprojek2.R.id.notificationFragment));
 
-        // Tombol Pilih (tampilkan mode seleksi)
+        // Tombol Pilih (mode seleksi)
         binding.btnSelect.setOnClickListener(v -> {
             adapter.setSelectionMode(true);
             binding.btnSelect.setVisibility(View.GONE);
             binding.btnDeleteSelected.setVisibility(View.VISIBLE);
         });
 
-        // Tombol Hapus
-        binding.btnDeleteSelected.setOnClickListener(v -> {
-            Iterator<HistoryItem> it = historyList.iterator();
-            while (it.hasNext()) {
-                if (it.next().isSelected()) it.remove();
-            }
-            adapter.setSelectionMode(false);
-            adapter.notifyDataSetChanged();
-            binding.btnSelect.setVisibility(View.VISIBLE);
-            binding.btnDeleteSelected.setVisibility(View.GONE);
-        });
+        // Tombol Hapus yang terpilih
+        binding.btnDeleteSelected.setOnClickListener(v -> hapusItemTerpilih());
 
-        // Click item untuk seleksi
+        // Click item untuk toggle seleksi
         adapter.setOnItemClickListener(position -> {
             if (adapter.isSelectionMode()) {
                 HistoryItem item = historyList.get(position);
@@ -78,13 +76,111 @@ public class HistoryFragment extends Fragment {
             }
         });
 
-        // Set teks awal tombol
         binding.btnSelect.setText("Pilih");
+
+        // Tampilkan empty state di awal
+        tampilkanEmptyState(true);
+
+        // Mulai load dari Firebase
+        mulaiFetchRiwayat();
+    }
+
+    private void mulaiFetchRiwayat() {
+        manajerRiwayat.mulaiListen(new ManajerRiwayat.RiwayatListener() {
+            @Override
+            public void onLoaded(List<ManajerRiwayat.RiwayatItem> items) {
+                if (!isAdded() || binding == null) return;
+                requireActivity().runOnUiThread(() -> {
+                    historyList.clear();
+
+                    if (items.isEmpty()) {
+                        tampilkanEmptyState(true);
+                        adapter.notifyDataSetChanged();
+                        return;
+                    }
+
+                    tampilkanEmptyState(false);
+
+                    // Konversi RiwayatItem → HistoryItem
+                    for (ManajerRiwayat.RiwayatItem raw : items) {
+                        historyList.add(new HistoryItem(
+                                raw.key,
+                                raw.message,
+                                raw.date,
+                                raw.timestamp,
+                                raw.type
+                        ));
+                    }
+
+                    adapter.notifyDataSetChanged();
+                });
+            }
+
+            @Override
+            public void onError(String pesan) {
+                if (!isAdded()) return;
+                requireActivity().runOnUiThread(() ->
+                        Toast.makeText(getContext(),
+                                "Gagal load riwayat: " + pesan, Toast.LENGTH_SHORT).show());
+            }
+        });
+    }
+
+    /** Hapus item-item yang sedang tercentang dari Firebase dan list lokal */
+    private void hapusItemTerpilih() {
+        // Kumpulkan key item yang dipilih
+        List<String> keysToDelete = new ArrayList<>();
+        for (HistoryItem item : historyList) {
+            if (item.isSelected() && item.getKey() != null) {
+                keysToDelete.add(item.getKey());
+            }
+        }
+
+        if (keysToDelete.isEmpty()) {
+            Toast.makeText(getContext(), "Tidak ada item yang dipilih.", Toast.LENGTH_SHORT).show();
+            keluarModeSeleksi();
+            return;
+        }
+
+        // Hapus dari Firebase
+        manajerRiwayat.hapusBeberapa(keysToDelete, () -> {
+            // Listener Firebase akan refresh list otomatis
+        });
+
+        // Langsung hapus dari list lokal untuk respons UI cepat
+        Iterator<HistoryItem> it = historyList.iterator();
+        while (it.hasNext()) {
+            if (it.next().isSelected()) it.remove();
+        }
+        adapter.notifyDataSetChanged();
+        keluarModeSeleksi();
+
+        if (historyList.isEmpty()) {
+            tampilkanEmptyState(true);
+        }
+
+        Toast.makeText(getContext(), keysToDelete.size() + " riwayat dihapus.", Toast.LENGTH_SHORT).show();
+    }
+
+    private void keluarModeSeleksi() {
+        adapter.setSelectionMode(false);
+        binding.btnSelect.setVisibility(View.VISIBLE);
+        binding.btnDeleteSelected.setVisibility(View.GONE);
+    }
+
+    private void tampilkanEmptyState(boolean tampil) {
+        if (binding.layoutEmptyHistory != null) {
+            binding.layoutEmptyHistory.setVisibility(tampil ? View.VISIBLE : View.GONE);
+        }
+        binding.rvHistory.setVisibility(tampil ? View.GONE : View.VISIBLE);
     }
 
     @Override
     public void onDestroyView() {
         super.onDestroyView();
+        if (manajerRiwayat != null) {
+            manajerRiwayat.stopListen();
+        }
         binding = null;
     }
 }

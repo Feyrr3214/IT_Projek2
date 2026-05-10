@@ -13,12 +13,22 @@ import java.util.List;
 public class NotificationAdapter extends RecyclerView.Adapter<RecyclerView.ViewHolder> {
 
     private static final int TYPE_HEADER = 0;
-    private static final int TYPE_ITEM = 1;
+    private static final int TYPE_ITEM   = 1;
 
     private final List<NotificationItem> items;
 
+    public interface OnItemLongClickListener {
+        void onLongClick(int position, NotificationItem item);
+    }
+
+    private OnItemLongClickListener longClickListener;
+
     public NotificationAdapter(List<NotificationItem> items) {
         this.items = items;
+    }
+
+    public void setOnItemLongClickListener(OnItemLongClickListener listener) {
+        this.longClickListener = listener;
     }
 
     @Override
@@ -44,16 +54,29 @@ public class NotificationAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
         NotificationItem item = items.get(position);
 
         if (holder instanceof HeaderViewHolder) {
-            ((HeaderViewHolder) holder).tvHeader.setText(item.getHeaderTitle());
-            ((HeaderViewHolder) holder).tvHeader.setTextColor(0xFF888888);
-            ((HeaderViewHolder) holder).tvHeader.setTextSize(12f);
-            ((HeaderViewHolder) holder).tvHeader.setPadding(0, 16, 0, 8);
-            ((HeaderViewHolder) holder).tvHeader.setTypeface(null, android.graphics.Typeface.BOLD);
+            HeaderViewHolder h = (HeaderViewHolder) holder;
+            h.tvHeader.setText(item.getHeaderTitle());
+            h.tvHeader.setTextColor(0xFF888888);
+            h.tvHeader.setTextSize(12f);
+            h.tvHeader.setPadding(0, 24, 0, 8);
+            h.tvHeader.setTypeface(null, android.graphics.Typeface.BOLD);
+
         } else if (holder instanceof ItemViewHolder) {
             ItemViewHolder h = (ItemViewHolder) holder;
             h.tvTitle.setText(item.getTitle());
             h.tvDesc.setText(item.getDescription());
 
+            // Tampilkan waktu jika ada timestamp
+            if (item.getTimestamp() > 0) {
+                java.text.SimpleDateFormat sdf = new java.text.SimpleDateFormat(
+                        "HH:mm", java.util.Locale.getDefault());
+                h.tvTime.setText(sdf.format(new java.util.Date(item.getTimestamp())));
+                h.tvTime.setVisibility(View.VISIBLE);
+            } else {
+                h.tvTime.setVisibility(View.GONE);
+            }
+
+            // Set ikon & warna berdasarkan tipe
             switch (item.getType()) {
                 case CRITICAL:
                     h.ivIcon.setBackgroundResource(R.drawable.shape_icon_circle_red);
@@ -61,10 +84,14 @@ public class NotificationAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                     h.ivIcon.setColorFilter(0xFFFF6969);
                     break;
                 case SUCCESS:
-                case INFO:
                     h.ivIcon.setBackgroundResource(R.drawable.shape_icon_circle_green);
                     h.ivIcon.setImageResource(R.drawable.ic_water_drop);
                     h.ivIcon.setColorFilter(0xFF5ED5A8);
+                    break;
+                case INFO:
+                    h.ivIcon.setBackgroundResource(R.drawable.shape_icon_circle_green);
+                    h.ivIcon.setImageResource(R.drawable.ic_water_drop);
+                    h.ivIcon.setColorFilter(0xFF5B8CFF);
                     break;
                 case WARNING:
                     h.ivIcon.setBackgroundResource(R.drawable.shape_icon_circle_yellow);
@@ -72,6 +99,14 @@ public class NotificationAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
                     h.ivIcon.setColorFilter(0xFFF5A623);
                     break;
             }
+
+            // Long press untuk hapus
+            h.itemView.setOnLongClickListener(v -> {
+                if (longClickListener != null) {
+                    longClickListener.onLongClick(holder.getAdapterPosition(), item);
+                }
+                return true;
+            });
         }
     }
 
@@ -90,12 +125,13 @@ public class NotificationAdapter extends RecyclerView.Adapter<RecyclerView.ViewH
 
     static class ItemViewHolder extends RecyclerView.ViewHolder {
         ImageView ivIcon;
-        TextView tvTitle, tvDesc;
+        TextView tvTitle, tvDesc, tvTime;
         ItemViewHolder(View view) {
             super(view);
-            ivIcon = view.findViewById(R.id.ivNotifIcon);
+            ivIcon  = view.findViewById(R.id.ivNotifIcon);
             tvTitle = view.findViewById(R.id.tvNotifTitle);
-            tvDesc = view.findViewById(R.id.tvNotifDesc);
+            tvDesc  = view.findViewById(R.id.tvNotifDesc);
+            tvTime  = view.findViewById(R.id.tvNotifTime);
         }
     }
 }

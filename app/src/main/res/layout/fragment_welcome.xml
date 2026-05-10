@@ -50,7 +50,7 @@
         android:layout_width="0dp"
         android:layout_height="wrap_content"
         android:layout_marginTop="8dp"
-        android:text="Membagi cerdas untuk Anggur Berkualitas"
+        android:text="Solusi cerdas untuk Anggur Berkualitas"
         android:textColor="#666666"
         android:textSize="15sp"
         app:layout_constraintTop_toBottomOf="@id/tvWelcome"

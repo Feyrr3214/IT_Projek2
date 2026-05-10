@@ -14,6 +14,7 @@ import androidx.fragment.app.Fragment;
 import com.example.itprojek2.R;
 import com.example.itprojek2.controller.IrrigationController;
 import com.example.itprojek2.controller.ManajerNotifikasi;
+import com.example.itprojek2.controller.ManajerRiwayat;
 import com.example.itprojek2.databinding.FragmentHomeBinding;
 import androidx.navigation.Navigation;
 
@@ -22,6 +23,7 @@ public class HomeFragment extends Fragment {
     private FragmentHomeBinding binding;
     private IrrigationController controller;
     private ManajerNotifikasi manajerNotifikasi;
+    private ManajerRiwayat manajerRiwayat;
 
     // Mencegah infinite loop pada switch listener
     private boolean isAutoProgrammatic = false;
@@ -31,6 +33,11 @@ public class HomeFragment extends Fragment {
     // Batas kelembaban yang dimuat dari Firebase (untuk cek notifikasi)
     private int batasMin = 30;
     private int batasMax = 70;
+
+    // Tracking state pompa & online sebelumnya untuk deteksi perubahan
+    private boolean pumpWasRunning = false;
+    private boolean wasOnline      = false;
+    private boolean firstStatus    = true; // Abaikan event online pertama kali (inisialisasi)
 
     private static final String DEVICE_ID = "esp32_01";
     private static final int KODE_IZIN_NOTIFIKASI = 200;
@@ -51,8 +58,11 @@ public class HomeFragment extends Fragment {
         // Inisialisasi controller Firebase
         controller = new IrrigationController(DEVICE_ID);
 
-        // Inisialisasi manajer notifikasi
-        manajerNotifikasi = new ManajerNotifikasi(requireContext());
+        // Inisialisasi manajer notifikasi (dengan deviceId agar event disimpan ke Firebase)
+        manajerNotifikasi = new ManajerNotifikasi(requireContext(), DEVICE_ID);
+
+        // Inisialisasi manajer riwayat
+        manajerRiwayat = new ManajerRiwayat(DEVICE_ID);
 
         // Minta izin notifikasi (Android 13+/API 33+)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
@@ -217,11 +227,42 @@ public class HomeFragment extends Fragment {
                         binding.moistureGaugeView.setMoisturePercent(status.moisture);
 
                         // ════ CEK NOTIFIKASI KELEMBABAN ════
-                        // Kirim notif ke HP jika kelembaban di luar rentang normal
                         if (manajerNotifikasi != null) {
                             manajerNotifikasi.cekDanKirimNotifikasi(
                                     status.moisture, batasMin, batasMax);
                         }
+
+                        // ════ EVENT POMPA: Deteksi pompa nyala/mati ════
+                        if (!firstStatus) {
+                            if (status.pumpRunning && !pumpWasRunning) {
+                                // Pompa baru nyala
+                                String mode = status.autoWatering ? "auto"
+                                            : status.scheduleMode ? "schedule" : "manual";
+                                if (manajerNotifikasi != null) {
+                                    manajerNotifikasi.eventPompaMenyala(status.moisture, mode);
+                                }
+                                String pesanRiwayat;
+                                switch (mode) {
+                                    case "auto":     pesanRiwayat = "Penyiraman otomatis dimulai — kelembaban " + status.moisture + "%." ; break;
+                                    case "schedule": pesanRiwayat = "Penyiraman terjadwal dimulai — kelembaban " + status.moisture + "%." ; break;
+                                    default:         pesanRiwayat = "Penyiraman manual dimulai — kelembaban " + status.moisture + "%." ;
+                                }
+                                if (manajerRiwayat != null) {
+                                    manajerRiwayat.simpan(pesanRiwayat, mode.equals("manual") ? "pump" : mode);
+                                }
+                            } else if (!status.pumpRunning && pumpWasRunning) {
+                                // Pompa baru mati
+                                if (manajerNotifikasi != null) {
+                                    manajerNotifikasi.eventPompaMati(status.lastDuration, status.moisture);
+                                }
+                                String pesanRiwayat = "Penyiraman selesai, durasi " + status.lastDuration
+                                        + " detik. Kelembaban akhir " + status.moisture + "%.";
+                                if (manajerRiwayat != null) {
+                                    manajerRiwayat.simpan(pesanRiwayat, "pump");
+                                }
+                            }
+                        }
+                        pumpWasRunning = status.pumpRunning;
 
                         // Update status pompa
                         if (status.pumpRunning) {
@@ -249,26 +290,55 @@ public class HomeFragment extends Fragment {
                                     ContextCompat.getColor(requireContext(), R.color.text_dark));
                         }
                     } else {
-                        // ESP32 OFFLINE — reset semua ke kondisi awal
-                        binding.tvDeviceOnlineStatus.setText("Perangkat: Offline");
+                        // ════ EVENT OFFLINE ════
+                        if (!firstStatus && wasOnline) {
+                            if (manajerNotifikasi != null) manajerNotifikasi.eventPerangkatOffline();
+                            if (manajerRiwayat != null) {
+                                manajerRiwayat.simpan("Perangkat ESP32 tidak merespons. Periksa koneksi WiFi.", "offline");
+                            }
+                        }
+
+                        // ESP32 OFFLINE
+                        binding.tvDeviceOnlineStatus.setText("Offline — Mode Auto tetap aktif di alat");
                         binding.tvDeviceOnlineStatus.setTextColor(
-                                ContextCompat.getColor(requireContext(), R.color.danger_red));
+                                ContextCompat.getColor(requireContext(), R.color.warning_yellow));
                         binding.viewDeviceOnlineDot.setBackgroundResource(
-                                R.drawable.shape_icon_circle_red);
+                                R.drawable.shape_icon_circle_yellow);
 
                         // Reset gauge ke 0%
                         binding.moistureGaugeView.setMoisturePercent(0f);
 
-                        // Reset status pompa
-                        binding.tvPumpStatus.setText("Pompa: Mati");
+                        // Pompa status tidak diketahui
+                        binding.tvPumpStatus.setText("Pompa: Tidak Diketahui");
                         binding.tvPumpStatus.setTextColor(
                                 ContextCompat.getColor(requireContext(), R.color.text_gray));
 
-                        // Reset status watering
-                        binding.tvWateringStatus.setText("Status: Perangkat Mati");
+                        // Disable tombol Manual — butuh koneksi realtime
+                        binding.btnManualPump.setEnabled(false);
+                        binding.btnManualPump.setText("SIRAM");
+                        binding.btnManualPump.setBackgroundTintList(
+                                android.content.res.ColorStateList.valueOf(
+                                        ContextCompat.getColor(requireContext(), R.color.text_gray)));
+
+                        // Switch Auto & Jadwal tetap enabled (setting disimpan ke Firebase untuk nanti online)
+                        binding.switchAutoWatering.setEnabled(true);
+                        binding.switchScheduleMode.setEnabled(true);
+
+                        // Status penyiraman
+                        binding.tvWateringStatus.setText("Status: Perangkat Offline");
                         binding.tvWateringStatus.setTextColor(
-                                ContextCompat.getColor(requireContext(), R.color.danger_red));
+                                ContextCompat.getColor(requireContext(), R.color.warning_yellow));
                     }
+
+                    // ════ EVENT ONLINE KEMBALI ════
+                    if (!firstStatus && !wasOnline && status.online) {
+                        if (manajerNotifikasi != null) manajerNotifikasi.eventPerangkatOnline();
+                        if (manajerRiwayat != null) {
+                            manajerRiwayat.simpan("Perangkat ESP32 kembali online.", "mode");
+                        }
+                    }
+                    wasOnline   = status.online;
+                    firstStatus = false;
                 });
             }
 
@@ -306,9 +376,12 @@ public class HomeFragment extends Fragment {
     @Override
     public void onDestroyView() {
         super.onDestroyView();
-        // Hentikan listener Firebase agar tidak memory leak
+        // Hentikan semua listener Firebase agar tidak memory leak
         if (controller != null) {
             controller.stopListening();
+        }
+        if (manajerRiwayat != null) {
+            manajerRiwayat.stopListen();
         }
         binding = null;
     }
