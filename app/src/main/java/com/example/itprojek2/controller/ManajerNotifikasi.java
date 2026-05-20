@@ -57,8 +57,9 @@ public class ManajerNotifikasi {
     private static final String KEY_KERING    = "waktu_notif_kering";
     private static final String KEY_BASAH     = "waktu_notif_basah";
 
-    private static final long COOLDOWN_MS = 30 * 1000L;
-    private static final int  BATAS_NOTIF = 100; // Maksimal notif disimpan di Firebase
+    private static final long COOLDOWN_MS  = 30 * 1000L;
+    private static final int  BATAS_NOTIF  = 50;  // Maksimal notif disimpan di Firebase
+    private static final long MAKS_UMUR_MS = 7L * 24 * 60 * 60 * 1000; // 7 hari dalam ms
 
     private final Context context;
     private DatabaseReference refNotifications; // nullable jika deviceId tidak disediakan
@@ -292,8 +293,38 @@ public class ManajerNotifikasi {
         data.put("date", dateStr);
 
         refNotifications.push().setValue(data)
-                .addOnSuccessListener(unused -> Log.d(TAG, "Notif disimpan ke Firebase: " + judul))
+                .addOnSuccessListener(unused -> {
+                    Log.d(TAG, "Notif disimpan ke Firebase: " + judul);
+                    trimDataLama(); // Hapus otomatis data yang sudah terlalu lama
+                })
                 .addOnFailureListener(e -> Log.e(TAG, "Gagal simpan notif: " + e.getMessage()));
+    }
+
+    /**
+     * Hapus otomatis notifikasi yang lebih dari 30 hari.
+     * Dipanggil setiap kali ada notifikasi baru masuk.
+     */
+    private void trimDataLama() {
+        if (refNotifications == null) return;
+        long batasWaktu = System.currentTimeMillis() - MAKS_UMUR_MS;
+        refNotifications.orderByChild("timestamp").endAt(batasWaktu)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        if (!snapshot.exists()) return;
+                        long jumlah = snapshot.getChildrenCount();
+                        for (DataSnapshot child : snapshot.getChildren()) {
+                            child.getRef().removeValue();
+                        }
+                        if (jumlah > 0) {
+                            Log.d(TAG, "Auto-trim: " + jumlah + " notifikasi lama (>30 hari) dihapus.");
+                        }
+                    }
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.w(TAG, "Trim gagal: " + error.getMessage());
+                    }
+                });
     }
 
     /**

@@ -42,6 +42,27 @@
         </LinearLayout>
     </LinearLayout>
 
+    <!-- Action Bar (Tombol Hapus Semua) -->
+    <LinearLayout
+        android:id="@+id/layoutAction"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:orientation="horizontal"
+        android:paddingHorizontal="16dp"
+        android:paddingTop="12dp"
+        android:paddingBottom="4dp">
+
+        <View android:layout_width="0dp" android:layout_height="1dp" android:layout_weight="1"/>
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDeleteAll"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hapus Semua"
+            app:cornerRadius="12dp"
+            style="@style/ButtonDanger" />
+    </LinearLayout>
+
     <!-- Empty State -->
     <LinearLayout
         android:id="@+id/layoutEmptyNotif"

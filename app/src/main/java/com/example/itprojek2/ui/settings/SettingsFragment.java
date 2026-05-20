@@ -128,10 +128,7 @@ public class SettingsFragment extends Fragment {
                     if (isAdded()) {
                         android.widget.Toast.makeText(getContext(),
                                 "✓ Batas kelembaban berhasil disimpan!", android.widget.Toast.LENGTH_SHORT).show();
-                        // Simpan ke riwayat & notifikasi Firebase
-                        if (manajerRiwayat != null) {
-                            manajerRiwayat.simpan("Batas kelembaban diperbarui: Min " + minVal + "% — Max " + maxVal + "%.", "threshold");
-                        }
+                        // Simpan ke notifikasi Firebase (riwayat tidak perlu, hanya untuk penyiraman)
                         if (manajerNotifikasi != null) {
                             manajerNotifikasi.eventBatasKelembapanDiubah(minVal, maxVal);
                         }

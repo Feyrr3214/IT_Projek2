@@ -11,6 +11,7 @@ import androidx.fragment.app.Fragment;
 import androidx.recyclerview.widget.LinearLayoutManager;
 import com.example.itprojek2.controller.ManajerRiwayat;
 import com.example.itprojek2.databinding.FragmentHistoryBinding;
+import com.example.itprojek2.R;
 import java.util.ArrayList;
 import java.util.Iterator;
 import java.util.List;
@@ -61,8 +62,12 @@ public class HistoryFragment extends Fragment {
         binding.btnSelect.setOnClickListener(v -> {
             adapter.setSelectionMode(true);
             binding.btnSelect.setVisibility(View.GONE);
+            binding.btnDeleteAll.setVisibility(View.GONE);
             binding.btnDeleteSelected.setVisibility(View.VISIBLE);
         });
+
+        // Tombol Hapus Semua
+        binding.btnDeleteAll.setOnClickListener(v -> konfirmasiHapusSemua());
 
         // Tombol Hapus yang terpilih
         binding.btnDeleteSelected.setOnClickListener(v -> hapusItemTerpilih());
@@ -165,6 +170,9 @@ public class HistoryFragment extends Fragment {
     private void keluarModeSeleksi() {
         adapter.setSelectionMode(false);
         binding.btnSelect.setVisibility(View.VISIBLE);
+        if (!historyList.isEmpty()) {
+            binding.btnDeleteAll.setVisibility(View.VISIBLE);
+        }
         binding.btnDeleteSelected.setVisibility(View.GONE);
     }
 
@@ -173,6 +181,46 @@ public class HistoryFragment extends Fragment {
             binding.layoutEmptyHistory.setVisibility(tampil ? View.VISIBLE : View.GONE);
         }
         binding.rvHistory.setVisibility(tampil ? View.GONE : View.VISIBLE);
+        if (binding.btnDeleteAll != null) {
+            binding.btnDeleteAll.setVisibility(tampil ? View.GONE : View.VISIBLE);
+        }
+    }
+
+    private void konfirmasiHapusSemua() {
+        if (historyList.isEmpty()) {
+            Toast.makeText(getContext(), "Riwayat sudah kosong.", Toast.LENGTH_SHORT).show();
+            return;
+        }
+
+        View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_confirm_delete, null);
+        android.widget.TextView tvTitle = dialogView.findViewById(R.id.tvDialogTitle);
+        android.widget.TextView tvMessage = dialogView.findViewById(R.id.tvDialogMessage);
+        tvTitle.setText("Hapus Semua Riwayat?");
+        tvMessage.setText("Apakah Anda yakin ingin menghapus semua riwayat aktivitas? Tindakan ini tidak dapat dibatalkan.");
+
+        androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setView(dialogView)
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
+        }
+
+        dialogView.findViewById(R.id.btnCancel).setOnClickListener(v -> dialog.dismiss());
+        dialogView.findViewById(R.id.btnConfirm).setOnClickListener(v -> {
+            manajerRiwayat.hapusSemua(() -> {
+                if (!isAdded()) return;
+                requireActivity().runOnUiThread(() -> {
+                    historyList.clear();
+                    adapter.notifyDataSetChanged();
+                    tampilkanEmptyState(true);
+                    Toast.makeText(getContext(), "Semua riwayat berhasil dihapus.", Toast.LENGTH_SHORT).show();
+                });
+            });
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
 
     @Override

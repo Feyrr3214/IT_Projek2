@@ -76,73 +76,10 @@ public class NotificationFragment extends Fragment {
             }
         });
 
-        // Swipe (geser) untuk menghapus dengan animasi modern
-        androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback simpleCallback = 
-                new androidx.recyclerview.widget.ItemTouchHelper.SimpleCallback(0, androidx.recyclerview.widget.ItemTouchHelper.LEFT) {
-            
-            // Icon dan background untuk animasi swipe
-            private android.graphics.drawable.ColorDrawable background = new android.graphics.drawable.ColorDrawable(0xFFFF4444); // Merah
-            private android.graphics.drawable.Drawable deleteIcon = androidx.core.content.ContextCompat.getDrawable(requireContext(), R.drawable.ic_delete);
-
-            @Override
-            public boolean onMove(@NonNull androidx.recyclerview.widget.RecyclerView recyclerView, @NonNull androidx.recyclerview.widget.RecyclerView.ViewHolder viewHolder, @NonNull androidx.recyclerview.widget.RecyclerView.ViewHolder target) {
-                return false;
-            }
-
-            @Override
-            public int getSwipeDirs(@NonNull androidx.recyclerview.widget.RecyclerView recyclerView, @NonNull androidx.recyclerview.widget.RecyclerView.ViewHolder viewHolder) {
-                // Jangan izinkan swipe pada Header (seperti "HARI INI")
-                if (viewHolder instanceof NotificationAdapter.HeaderViewHolder) {
-                    return 0;
-                }
-                return super.getSwipeDirs(recyclerView, viewHolder);
-            }
-
-            @Override
-            public void onChildDraw(@NonNull android.graphics.Canvas c, @NonNull androidx.recyclerview.widget.RecyclerView recyclerView, @NonNull androidx.recyclerview.widget.RecyclerView.ViewHolder viewHolder, float dX, float dY, int actionState, boolean isCurrentlyActive) {
-                View itemView = viewHolder.itemView;
-                
-                // Jika sedang di-swipe ke kiri
-                if (dX < 0) {
-                    // Gambar background merah
-                    background.setBounds(itemView.getRight() + (int) dX, itemView.getTop(), itemView.getRight(), itemView.getBottom());
-                    background.draw(c);
-
-                    // Gambar icon tempat sampah jika digeser cukup jauh
-                    if (deleteIcon != null) {
-                        int itemHeight = itemView.getBottom() - itemView.getTop();
-                        int iconMargin = (itemHeight - deleteIcon.getIntrinsicHeight()) / 2;
-                        int iconTop = itemView.getTop() + iconMargin;
-                        int iconBottom = iconTop + deleteIcon.getIntrinsicHeight();
-                        int iconLeft = itemView.getRight() - iconMargin - deleteIcon.getIntrinsicWidth();
-                        int iconRight = itemView.getRight() - iconMargin;
-
-                        deleteIcon.setTint(0xFFFFFFFF); // Icon warna putih
-                        deleteIcon.setBounds(iconLeft, iconTop, iconRight, iconBottom);
-                        
-                        // Buat icon muncul perlahan berdasarkan seberapa jauh digeser
-                        int alpha = (int) (Math.abs(dX) / ((float) itemView.getWidth() / 3) * 255);
-                        deleteIcon.setAlpha(Math.min(alpha, 255));
-                        deleteIcon.draw(c);
-                    }
-                }
-
-                super.onChildDraw(c, recyclerView, viewHolder, dX, dY, actionState, isCurrentlyActive);
-            }
-
-            @Override
-            public void onSwiped(@NonNull androidx.recyclerview.widget.RecyclerView.ViewHolder viewHolder, int direction) {
-                int position = viewHolder.getAdapterPosition();
-                NotificationItem item = displayList.get(position);
-                if (item != null && item.getFirebaseKey() != null) {
-                    manajerNotifikasi.hapus(item.getFirebaseKey(), null);
-                    Toast.makeText(getContext(), "Notifikasi dihapus", Toast.LENGTH_SHORT).show();
-                } else {
-                    adapter.notifyItemChanged(position);
-                }
-            }
-        };
-        new androidx.recyclerview.widget.ItemTouchHelper(simpleCallback).attachToRecyclerView(binding.rvNotifications);
+        // Tombol hapus semua
+        if (binding.btnDeleteAll != null) {
+            binding.btnDeleteAll.setOnClickListener(v -> konfirmasiHapusSemua());
+        }
 
         // Tampilkan empty state di awal
         tampilkanEmptyState(true);
@@ -167,14 +104,7 @@ public class NotificationFragment extends Fragment {
 
                     tampilkanEmptyState(false);
 
-                    // Group by tanggal
-                    String headerTerakhir = "";
                     for (ManajerNotifikasi.NotifItem raw : items) {
-                        String headerTanggal = getHeaderTanggal(raw.timestamp);
-                        if (!headerTanggal.equals(headerTerakhir)) {
-                            displayList.add(new NotificationItem(headerTanggal));
-                            headerTerakhir = headerTanggal;
-                        }
                         displayList.add(new NotificationItem(
                                 raw.title,
                                 raw.message,
@@ -197,33 +127,42 @@ public class NotificationFragment extends Fragment {
         });
     }
 
-    // Method konfirmasiHapusSemua() dihapus sesuai request
-    /** Konversi timestamp jadi label header tanggal */
-    private String getHeaderTanggal(long timestamp) {
-        if (timestamp <= 0) return "Sebelumnya";
-
-        Calendar calItem = Calendar.getInstance();
-        calItem.setTimeInMillis(timestamp);
-
-        Calendar calHariIni = Calendar.getInstance();
-
-        // Cek apakah hari ini
-        if (calItem.get(Calendar.YEAR) == calHariIni.get(Calendar.YEAR) &&
-                calItem.get(Calendar.DAY_OF_YEAR) == calHariIni.get(Calendar.DAY_OF_YEAR)) {
-            return "HARI INI";
+    private void konfirmasiHapusSemua() {
+        if (displayList.isEmpty()) {
+            Toast.makeText(requireContext(), "Tidak ada notifikasi untuk dihapus.", Toast.LENGTH_SHORT).show();
+            return;
         }
 
-        // Cek apakah kemarin
-        calHariIni.add(Calendar.DAY_OF_YEAR, -1);
-        if (calItem.get(Calendar.YEAR) == calHariIni.get(Calendar.YEAR) &&
-                calItem.get(Calendar.DAY_OF_YEAR) == calHariIni.get(Calendar.DAY_OF_YEAR)) {
-            return "KEMARIN";
+        View dialogView = LayoutInflater.from(requireContext()).inflate(R.layout.dialog_confirm_delete, null);
+        android.widget.TextView tvTitle = dialogView.findViewById(R.id.tvDialogTitle);
+        android.widget.TextView tvMessage = dialogView.findViewById(R.id.tvDialogMessage);
+        tvTitle.setText("Hapus Semua Notifikasi?");
+        tvMessage.setText("Apakah Anda yakin ingin menghapus semua notifikasi? Tindakan ini tidak dapat dibatalkan.");
+
+        androidx.appcompat.app.AlertDialog dialog = new androidx.appcompat.app.AlertDialog.Builder(requireContext())
+                .setView(dialogView)
+                .create();
+
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawableResource(android.R.color.transparent);
         }
 
-        // Tanggal lainnya
-        return new SimpleDateFormat("dd MMMM yyyy", new Locale("id", "ID"))
-                .format(new Date(timestamp)).toUpperCase();
+        dialogView.findViewById(R.id.btnCancel).setOnClickListener(v -> dialog.dismiss());
+        dialogView.findViewById(R.id.btnConfirm).setOnClickListener(v -> {
+            if (manajerNotifikasi != null) {
+                manajerNotifikasi.hapusSemua(null);
+                displayList.clear();
+                adapter.notifyDataSetChanged();
+                tampilkanEmptyState(true);
+                Toast.makeText(requireContext(), "Semua notifikasi berhasil dihapus", Toast.LENGTH_SHORT).show();
+            }
+            dialog.dismiss();
+        });
+
+        dialog.show();
     }
+
+
 
     /** Konversi string tipe dari Firebase ke enum */
     private NotificationItem.Type parseType(String type) {
@@ -241,6 +180,11 @@ public class NotificationFragment extends Fragment {
             binding.layoutEmptyNotif.setVisibility(tampil ? View.VISIBLE : View.GONE);
         }
         binding.rvNotifications.setVisibility(tampil ? View.GONE : View.VISIBLE);
+        
+        // Sembunyikan action bar (tombol hapus semua) jika kosong
+        if (binding.layoutAction != null) {
+            binding.layoutAction.setVisibility(tampil ? View.GONE : View.VISIBLE);
+        }
     }
 
     @Override

@@ -105,12 +105,35 @@ public class HomeFragment extends Fragment {
         });
 
         // ========================================
-        // ========================================
         // 1. SWITCH SENSOR OTOMATIS
         // ========================================
         binding.switchAutoWatering.setOnCheckedChangeListener((btn, isChecked) -> {
             if (isAutoProgrammatic) return;
-            controller.setAutoWatering(isChecked, createModeListener("Otomatis", isChecked));
+            // Optimistic: langsung disable interaksi sementara
+            binding.switchAutoWatering.setEnabled(false);
+            controller.setAutoWatering(isChecked, new IrrigationController.OnCommandListener() {
+                @Override
+                public void onSuccess() {
+                    if (!isAdded()) return;
+                    requireActivity().runOnUiThread(() -> {
+                        binding.switchAutoWatering.setEnabled(true);
+                        String msg = isChecked ? "Mode Otomatis ON" : "Mode Otomatis OFF";
+                        Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
+                    });
+                }
+                @Override
+                public void onFailure(String errorMessage) {
+                    if (!isAdded()) return;
+                    requireActivity().runOnUiThread(() -> {
+                        // Rollback switch jika gagal
+                        isAutoProgrammatic = true;
+                        binding.switchAutoWatering.setChecked(!isChecked);
+                        isAutoProgrammatic = false;
+                        binding.switchAutoWatering.setEnabled(true);
+                        Toast.makeText(getContext(), "Gagal: " + errorMessage, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
         });
 
         // ========================================
@@ -118,7 +141,31 @@ public class HomeFragment extends Fragment {
         // ========================================
         binding.switchScheduleMode.setOnCheckedChangeListener((btn, isChecked) -> {
             if (isScheduleProgrammatic) return;
-            controller.setScheduleMode(isChecked, createModeListener("Terjadwal", isChecked));
+            // Optimistic: langsung disable interaksi sementara
+            binding.switchScheduleMode.setEnabled(false);
+            controller.setScheduleMode(isChecked, new IrrigationController.OnCommandListener() {
+                @Override
+                public void onSuccess() {
+                    if (!isAdded()) return;
+                    requireActivity().runOnUiThread(() -> {
+                        binding.switchScheduleMode.setEnabled(true);
+                        String msg = isChecked ? "Mode Terjadwal ON" : "Mode Terjadwal OFF";
+                        Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
+                    });
+                }
+                @Override
+                public void onFailure(String errorMessage) {
+                    if (!isAdded()) return;
+                    requireActivity().runOnUiThread(() -> {
+                        // Rollback switch jika gagal
+                        isScheduleProgrammatic = true;
+                        binding.switchScheduleMode.setChecked(!isChecked);
+                        isScheduleProgrammatic = false;
+                        binding.switchScheduleMode.setEnabled(true);
+                        Toast.makeText(getContext(), "Gagal: " + errorMessage, Toast.LENGTH_SHORT).show();
+                    });
+                }
+            });
         });
 
         // ========================================
@@ -126,10 +173,40 @@ public class HomeFragment extends Fragment {
         // ========================================
         binding.btnManualPump.setOnClickListener(v -> {
             boolean isCurrentlyOn = binding.btnManualPump.getText().toString().equalsIgnoreCase("STOP");
+            // Optimistic: langsung disable tombol sementara
+            binding.btnManualPump.setEnabled(false);
             if (!isCurrentlyOn) {
-                controller.startManualPump(createModeListener("Manual", true));
+                controller.startManualPump(new IrrigationController.OnCommandListener() {
+                    @Override
+                    public void onSuccess() {
+                        if (!isAdded()) return;
+                        requireActivity().runOnUiThread(() -> binding.btnManualPump.setEnabled(true));
+                    }
+                    @Override
+                    public void onFailure(String errorMessage) {
+                        if (!isAdded()) return;
+                        requireActivity().runOnUiThread(() -> {
+                            binding.btnManualPump.setEnabled(true);
+                            Toast.makeText(getContext(), "Gagal: " + errorMessage, Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                });
             } else {
-                controller.stopManualPump(createModeListener("Manual", false));
+                controller.stopManualPump(new IrrigationController.OnCommandListener() {
+                    @Override
+                    public void onSuccess() {
+                        if (!isAdded()) return;
+                        requireActivity().runOnUiThread(() -> binding.btnManualPump.setEnabled(true));
+                    }
+                    @Override
+                    public void onFailure(String errorMessage) {
+                        if (!isAdded()) return;
+                        requireActivity().runOnUiThread(() -> {
+                            binding.btnManualPump.setEnabled(true);
+                            Toast.makeText(getContext(), "Gagal: " + errorMessage, Toast.LENGTH_SHORT).show();
+                        });
+                    }
+                });
             }
         });
 
@@ -293,17 +370,14 @@ public class HomeFragment extends Fragment {
                         // ════ EVENT OFFLINE ════
                         if (!firstStatus && wasOnline) {
                             if (manajerNotifikasi != null) manajerNotifikasi.eventPerangkatOffline();
-                            if (manajerRiwayat != null) {
-                                manajerRiwayat.simpan("Perangkat ESP32 tidak merespons. Periksa koneksi WiFi.", "offline");
-                            }
                         }
 
                         // ESP32 OFFLINE
-                        binding.tvDeviceOnlineStatus.setText("Offline — Mode Auto tetap aktif di alat");
+                        binding.tvDeviceOnlineStatus.setText("Perangkat: Offline");
                         binding.tvDeviceOnlineStatus.setTextColor(
-                                ContextCompat.getColor(requireContext(), R.color.warning_yellow));
+                                ContextCompat.getColor(requireContext(), R.color.danger_red));
                         binding.viewDeviceOnlineDot.setBackgroundResource(
-                                R.drawable.shape_icon_circle_yellow);
+                                R.drawable.shape_icon_circle_red);
 
                         // Reset gauge ke 0%
                         binding.moistureGaugeView.setMoisturePercent(0f);
@@ -313,29 +387,24 @@ public class HomeFragment extends Fragment {
                         binding.tvPumpStatus.setTextColor(
                                 ContextCompat.getColor(requireContext(), R.color.text_gray));
 
-                        // Disable tombol Manual — butuh koneksi realtime
+                        // Disable semua kontrol saat offline
                         binding.btnManualPump.setEnabled(false);
                         binding.btnManualPump.setText("SIRAM");
                         binding.btnManualPump.setBackgroundTintList(
                                 android.content.res.ColorStateList.valueOf(
                                         ContextCompat.getColor(requireContext(), R.color.text_gray)));
-
-                        // Switch Auto & Jadwal tetap enabled (setting disimpan ke Firebase untuk nanti online)
-                        binding.switchAutoWatering.setEnabled(true);
-                        binding.switchScheduleMode.setEnabled(true);
+                        binding.switchAutoWatering.setEnabled(false);
+                        binding.switchScheduleMode.setEnabled(false);
 
                         // Status penyiraman
                         binding.tvWateringStatus.setText("Status: Perangkat Offline");
                         binding.tvWateringStatus.setTextColor(
-                                ContextCompat.getColor(requireContext(), R.color.warning_yellow));
+                                ContextCompat.getColor(requireContext(), R.color.danger_red));
                     }
 
                     // ════ EVENT ONLINE KEMBALI ════
                     if (!firstStatus && !wasOnline && status.online) {
                         if (manajerNotifikasi != null) manajerNotifikasi.eventPerangkatOnline();
-                        if (manajerRiwayat != null) {
-                            manajerRiwayat.simpan("Perangkat ESP32 kembali online.", "mode");
-                        }
                     }
                     wasOnline   = status.online;
                     firstStatus = false;
@@ -350,27 +419,6 @@ public class HomeFragment extends Fragment {
                                 "Error data: " + errorMessage, Toast.LENGTH_SHORT).show());
             }
         });
-    }
-
-    private IrrigationController.OnCommandListener createModeListener(String mode, boolean isChecked) {
-        return new IrrigationController.OnCommandListener() {
-            @Override
-            public void onSuccess() {
-                if (!isAdded()) return;
-                requireActivity().runOnUiThread(() -> {
-                    String msg = isChecked ? ("Mode " + mode + " ON") : ("Mode " + mode + " OFF");
-                    Toast.makeText(getContext(), msg, Toast.LENGTH_SHORT).show();
-                });
-            }
-
-            @Override
-            public void onFailure(String errorMessage) {
-                if (!isAdded()) return;
-                requireActivity().runOnUiThread(() -> {
-                    Toast.makeText(getContext(), "Gagal: " + errorMessage, Toast.LENGTH_SHORT).show();
-                });
-            }
-        };
     }
 
     @Override

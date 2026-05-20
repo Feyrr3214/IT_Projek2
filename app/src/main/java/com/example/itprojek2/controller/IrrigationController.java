@@ -68,9 +68,6 @@ public class IrrigationController {
         kontrolJadwal     = new KontrolJadwal(refKontrol);
         pendengarStatus   = new PendengarStatus(refPerangkat);
 
-        // Bersihkan pesan LCD lama saat app dibuka
-        kontrolLcd.hapusPesan();
-
         // Inisialisasi default nilai Firebase jika node belum ada
         refKontrol.child("manualPump").addListenerForSingleValueEvent(
             new com.google.firebase.database.ValueEventListener() {

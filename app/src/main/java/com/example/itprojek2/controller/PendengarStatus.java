@@ -97,8 +97,8 @@ public class PendengarStatus {
                         long selisihDetik = Math.abs(sekarangMs - lastPingMs) / 1000;
                         Log.d(TAG, "Selisih lastPing: " + selisihDetik + " detik");
 
-                        // > 30 detik → anggap offline
-                        sedangOnline = selisihDetik <= 30;
+                        // > 12 detik → anggap offline
+                        sedangOnline = selisihDetik <= 12;
 
                     } else if (lastPingRaw == -1) {
                         // NTP di ESP32 belum sinkron → gunakan field "online"
@@ -126,7 +126,7 @@ public class PendengarStatus {
                 if (handlerHeartbeat != null) {
                     handlerHeartbeat.removeCallbacks(runnableHeartbeat);
                     if (status.online) {
-                        handlerHeartbeat.postDelayed(runnableHeartbeat, 20_000L);
+                        handlerHeartbeat.postDelayed(runnableHeartbeat, 8_000L);
                     }
                 }
             }

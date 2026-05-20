@@ -28,8 +28,9 @@ import java.util.Map;
  */
 public class ManajerRiwayat {
 
-    private static final String TAG = "ManajerRiwayat";
-    private static final int BATAS_TAMPIL = 100;
+    private static final String TAG          = "ManajerRiwayat";
+    private static final int    BATAS_TAMPIL = 100;
+    private static final long   MAKS_UMUR_MS = 7L * 24 * 60 * 60 * 1000; // 7 hari dalam ms
 
     private final DatabaseReference refHistory;
     private ValueEventListener listenerHistory;
@@ -77,8 +78,37 @@ public class ManajerRiwayat {
         data.put("type", type);
 
         refHistory.push().setValue(data)
-                .addOnSuccessListener(unused -> Log.d(TAG, "Riwayat disimpan: " + message))
+                .addOnSuccessListener(unused -> {
+                    Log.d(TAG, "Riwayat disimpan: " + message);
+                    trimDataLama(); // Hapus otomatis data yang sudah terlalu lama
+                })
                 .addOnFailureListener(e -> Log.e(TAG, "Gagal simpan riwayat: " + e.getMessage()));
+    }
+
+    /**
+     * Hapus otomatis riwayat yang lebih dari 30 hari.
+     * Dipanggil setiap kali ada data baru disimpan.
+     */
+    private void trimDataLama() {
+        long batasWaktu = System.currentTimeMillis() - MAKS_UMUR_MS;
+        refHistory.orderByChild("timestamp").endAt(batasWaktu)
+                .addListenerForSingleValueEvent(new ValueEventListener() {
+                    @Override
+                    public void onDataChange(@NonNull DataSnapshot snapshot) {
+                        if (!snapshot.exists()) return;
+                        long jumlah = snapshot.getChildrenCount();
+                        for (DataSnapshot child : snapshot.getChildren()) {
+                            child.getRef().removeValue();
+                        }
+                        if (jumlah > 0) {
+                            Log.d(TAG, "Auto-trim: " + jumlah + " riwayat lama (>30 hari) dihapus.");
+                        }
+                    }
+                    @Override
+                    public void onCancelled(@NonNull DatabaseError error) {
+                        Log.w(TAG, "Trim gagal: " + error.getMessage());
+                    }
+                });
     }
 
     /**

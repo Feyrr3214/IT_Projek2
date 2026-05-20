@@ -72,9 +72,19 @@
             style="@style/ButtonDanger" />
 
         <com.google.android.material.button.MaterialButton
+            android:id="@+id/btnDeleteAll"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="Hapus Semua"
+            android:layout_marginEnd="8dp"
+            app:cornerRadius="12dp"
+            style="@style/ButtonDanger" />
+
+        <com.google.android.material.button.MaterialButton
             android:id="@+id/btnSelect"
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
+            android:text="Pilih"
             app:cornerRadius="12dp"
             style="@style/ButtonPrimary" />
     </LinearLayout>
