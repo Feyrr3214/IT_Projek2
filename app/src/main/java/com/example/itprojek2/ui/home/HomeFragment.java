@@ -10,11 +10,13 @@ import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.core.content.ContextCompat;
 import androidx.fragment.app.Fragment;
+import androidx.viewpager2.widget.ViewPager2;
 
 import com.example.itprojek2.R;
 import com.example.itprojek2.controller.IrrigationController;
 import com.example.itprojek2.controller.ManajerNotifikasi;
 import com.example.itprojek2.controller.ManajerRiwayat;
+import com.example.itprojek2.controller.MoistureHistoryManager;
 import com.example.itprojek2.databinding.FragmentHomeBinding;
 import androidx.navigation.Navigation;
 
@@ -24,6 +26,8 @@ public class HomeFragment extends Fragment {
     private IrrigationController controller;
     private ManajerNotifikasi manajerNotifikasi;
     private ManajerRiwayat manajerRiwayat;
+    private MoistureHistoryManager historyManager;
+    private MoistureCardPagerAdapter pagerAdapter;
 
     // Mencegah infinite loop pada switch listener
     private boolean isAutoProgrammatic = false;
@@ -38,6 +42,9 @@ public class HomeFragment extends Fragment {
     private boolean pumpWasRunning = false;
     private boolean wasOnline      = false;
     private boolean firstStatus    = true; // Abaikan event online pertama kali (inisialisasi)
+
+    // Tracking moisture terakhir yang disimpan agar tidak double-save
+    private int lastSavedMoisture = -1;
 
     private static final String DEVICE_ID = "esp32_01";
     private static final int KODE_IZIN_NOTIFIKASI = 200;
@@ -64,6 +71,9 @@ public class HomeFragment extends Fragment {
         // Inisialisasi manajer riwayat
         manajerRiwayat = new ManajerRiwayat(DEVICE_ID);
 
+        // Inisialisasi history manager kelembaban
+        historyManager = new MoistureHistoryManager(DEVICE_ID);
+
         // Minta izin notifikasi (Android 13+/API 33+)
         if (android.os.Build.VERSION.SDK_INT >= android.os.Build.VERSION_CODES.TIRAMISU) {
             if (androidx.core.content.ContextCompat.checkSelfPermission(requireContext(),
@@ -81,16 +91,16 @@ public class HomeFragment extends Fragment {
             batasMax = max;
         });
 
-    
-
         // Load nama user dari sesi
         android.content.SharedPreferences prefs = requireActivity().getSharedPreferences("UserSession", android.content.Context.MODE_PRIVATE);
         String name = prefs.getString("name", "User");
         String firstName = name.contains(" ") ? name.substring(0, name.indexOf(" ")) : name;
         binding.tvHeaderName.setText("Halo, " + firstName);
 
-        // Gauge kelembaban — default sampai data Firebase masuk
-        binding.moistureGaugeView.setMoisturePercent(0f);
+        // ========================================
+        // SETUP VIEWPAGER2 KELEMBABAN
+        // ========================================
+        setupMoisturePager();
 
         // ========================================
         // TOMBOL NOTIFIKASI
@@ -300,8 +310,16 @@ public class HomeFragment extends Fragment {
                         binding.viewDeviceOnlineDot.setBackgroundResource(
                                 R.drawable.shape_icon_circle_green);
 
-                        // Update gauge kelembaban hanya jika online
-                        binding.moistureGaugeView.setMoisturePercent(status.moisture);
+                        // Update gauge kelembaban via adapter
+                        if (pagerAdapter != null) {
+                            pagerAdapter.setMoisturePercent(status.moisture);
+                        }
+
+                        // Simpan data kelembaban ke history (hanya jika nilainya berubah)
+                        if (historyManager != null && (int) status.moisture != lastSavedMoisture) {
+                            historyManager.simpanData((int) status.moisture);
+                            lastSavedMoisture = (int) status.moisture;
+                        }
 
                         // ════ CEK NOTIFIKASI KELEMBABAN ════
                         if (manajerNotifikasi != null) {
@@ -379,8 +397,10 @@ public class HomeFragment extends Fragment {
                         binding.viewDeviceOnlineDot.setBackgroundResource(
                                 R.drawable.shape_icon_circle_red);
 
-                        // Reset gauge ke 0%
-                        binding.moistureGaugeView.setMoisturePercent(0f);
+                        // Reset gauge ke 0% via adapter
+                        if (pagerAdapter != null) {
+                            pagerAdapter.setMoisturePercent(0f);
+                        }
 
                         // Pompa status tidak diketahui
                         binding.tvPumpStatus.setText("Pompa: Tidak Diketahui");
@@ -421,6 +441,61 @@ public class HomeFragment extends Fragment {
         });
     }
 
+    // ========================================
+    // SETUP VIEWPAGER2 KELEMBABAN
+    // ========================================
+    private void setupMoisturePager() {
+        pagerAdapter = new MoistureCardPagerAdapter(mode -> {
+            // Saat chip filter dipilih, muat data dari Firebase
+            if (historyManager != null) {
+                historyManager.muatData(mode, (labels, values) -> {
+                    if (!isAdded() || binding == null) return;
+                    requireActivity().runOnUiThread(() -> {
+                        if (pagerAdapter != null) {
+                            pagerAdapter.setChartData(labels, values);
+                        }
+                    });
+                });
+            }
+        });
+
+        binding.moistureViewPager.setAdapter(pagerAdapter);
+        binding.moistureViewPager.setOffscreenPageLimit(1);
+
+        // Update dot indicator saat halaman berubah
+        binding.moistureViewPager.registerOnPageChangeCallback(
+            new ViewPager2.OnPageChangeCallback() {
+                @Override
+                public void onPageSelected(int position) {
+                    updateDotIndicator(position);
+                    // Saat halaman grafik dibuka, muat data default (hari ini)
+                    if (position == 1 && historyManager != null) {
+                        historyManager.muatData(
+                            MoistureHistoryManager.FilterMode.HARI_INI,
+                            (labels, values) -> {
+                                if (!isAdded() || binding == null) return;
+                                requireActivity().runOnUiThread(() -> {
+                                    if (pagerAdapter != null) {
+                                        pagerAdapter.setChartData(labels, values);
+                                    }
+                                });
+                            }
+                        );
+                    }
+                }
+            }
+        );
+    }
+
+    /** Perbarui tampilan dot indicator sesuai halaman aktif */
+    private void updateDotIndicator(int position) {
+        if (binding == null) return;
+        binding.dot0.setBackgroundResource(
+            position == 0 ? R.drawable.shape_dot_active : R.drawable.shape_dot_inactive);
+        binding.dot1.setBackgroundResource(
+            position == 1 ? R.drawable.shape_dot_active : R.drawable.shape_dot_inactive);
+    }
+
     @Override
     public void onDestroyView() {
         super.onDestroyView();
@@ -430,6 +505,9 @@ public class HomeFragment extends Fragment {
         }
         if (manajerRiwayat != null) {
             manajerRiwayat.stopListen();
+        }
+        if (historyManager != null) {
+            historyManager.stopListener();
         }
         binding = null;
     }
