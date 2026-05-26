@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">Rumah Anggur Pelaihari</string>
+    <string name="app_name">SIRAM</string>
     <string name="nav_home">Beranda</string>
     <string name="nav_history">Riwayat</string>
     <string name="nav_settings">Pengaturan</string>

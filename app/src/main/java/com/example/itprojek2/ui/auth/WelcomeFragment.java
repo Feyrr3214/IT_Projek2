@@ -25,7 +25,7 @@ public class WelcomeFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
-        // Animasi untuk logo
+        // Animasi untuk logo0
         ImageView ivLogo = view.findViewById(R.id.ivLogo);
         ivLogo.startAnimation(AnimationUtils.loadAnimation(requireContext(), R.anim.fade_in));
 

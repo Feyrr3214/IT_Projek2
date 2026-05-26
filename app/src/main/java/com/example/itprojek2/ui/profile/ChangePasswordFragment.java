@@ -13,6 +13,10 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
 import com.example.itprojek2.R;
+import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.EmailAuthProvider;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 public class ChangePasswordFragment extends Fragment {
 
@@ -56,9 +60,77 @@ public class ChangePasswordFragment extends Fragment {
             togglePasswordVisibility(etConfirm, ivToggleConfirm, isConfirmPassVisible);
         });
 
-        view.findViewById(R.id.btnSavePassword).setOnClickListener(v -> {
-            Toast.makeText(getContext(), "Password berhasil diperbarui!", Toast.LENGTH_SHORT).show();
-            Navigation.findNavController(v).navigateUp();
+        View btnSave = view.findViewById(R.id.btnSavePassword);
+        btnSave.setOnClickListener(v -> {
+            String oldPass = etOld.getText().toString().trim();
+            String newPass = etNew.getText().toString().trim();
+            String confirmPass = etConfirm.getText().toString().trim();
+
+            // Validasi input
+            if (oldPass.isEmpty()) {
+                etOld.setError("Password lama tidak boleh kosong");
+                etOld.requestFocus();
+                return;
+            }
+            if (newPass.isEmpty()) {
+                etNew.setError("Password baru tidak boleh kosong");
+                etNew.requestFocus();
+                return;
+            }
+            if (newPass.length() < 6) {
+                etNew.setError("Password baru minimal 6 karakter");
+                etNew.requestFocus();
+                return;
+            }
+            if (oldPass.equals(newPass)) {
+                etNew.setError("Password baru tidak boleh sama dengan password lama");
+                etNew.requestFocus();
+                return;
+            }
+            if (!newPass.equals(confirmPass)) {
+                etConfirm.setError("Konfirmasi password tidak cocok");
+                etConfirm.requestFocus();
+                return;
+            }
+
+            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+            if (user == null || user.getEmail() == null) {
+                Toast.makeText(getContext(), "Sesi login tidak ditemukan, silakan login ulang", Toast.LENGTH_SHORT).show();
+                return;
+            }
+
+            // Nonaktifkan tombol agar tidak double submit
+            btnSave.setEnabled(false);
+            Toast.makeText(getContext(), "Memverifikasi password lama...", Toast.LENGTH_SHORT).show();
+
+            // Re-authenticate dengan password lama dulu
+            AuthCredential credential = EmailAuthProvider.getCredential(user.getEmail(), oldPass);
+            user.reauthenticate(credential).addOnCompleteListener(reAuthTask -> {
+                if (reAuthTask.isSuccessful()) {
+                    // Re-auth berhasil, update ke password baru
+                    user.updatePassword(newPass).addOnCompleteListener(updateTask -> {
+                        btnSave.setEnabled(true);
+                        if (updateTask.isSuccessful()) {
+                            Toast.makeText(getContext(),
+                                    "Password berhasil diperbarui! Silakan login ulang.",
+                                    Toast.LENGTH_LONG).show();
+                            // Logout agar user login ulang pakai password baru
+                            FirebaseAuth.getInstance().signOut();
+                            Navigation.findNavController(v).navigate(R.id.action_changePassword_to_welcome);
+                        } else {
+                            Toast.makeText(getContext(),
+                                    "Gagal memperbarui password, coba lagi.",
+                                    Toast.LENGTH_SHORT).show();
+                        }
+                    });
+                } else {
+                    // Password lama salah
+                    btnSave.setEnabled(true);
+                    etOld.setError("Password lama tidak sesuai");
+                    etOld.requestFocus();
+                    Toast.makeText(getContext(), "Password lama salah, coba lagi.", Toast.LENGTH_SHORT).show();
+                }
+            });
         });
     }
 

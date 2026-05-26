@@ -4,6 +4,13 @@
     android:id="@+id/nav_graph"
     app:startDestination="@id/welcomeFragment">
 
+    <!-- Global action: kembali ke halaman awal setelah logout -->
+    <action
+        android:id="@+id/action_global_to_welcome"
+        app:destination="@id/welcomeFragment"
+        app:popUpTo="@id/nav_graph"
+        app:popUpToInclusive="true" />
+
     <!-- ========== AUTH FLOW ========== -->
 
     <fragment
@@ -106,5 +113,11 @@
     <fragment
         android:id="@+id/changePasswordFragment"
         android:name="com.example.itprojek2.ui.profile.ChangePasswordFragment"
-        android:label="Ganti Password" />
+        android:label="Ganti Password">
+        <action
+            android:id="@+id/action_changePassword_to_welcome"
+            app:destination="@id/welcomeFragment"
+            app:popUpTo="@id/nav_graph"
+            app:popUpToInclusive="true" />
+    </fragment>
 </navigation>
