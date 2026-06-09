@@ -22,7 +22,8 @@ public class OtpActivity extends AppCompatActivity {
     private String verificationId;
     
     // Data registrasi dari halaman sebelumnya
-    private String regName, regPassword, regPhone;
+    // CATATAN KEAMANAN: password TIDAK disimpan di sini karena sudah dikelola Firebase Auth
+    private String regName, regPhone;
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -38,8 +39,8 @@ public class OtpActivity extends AppCompatActivity {
         btnVerify = findViewById(R.id.btnVerify);
 
         // Ambil data dari intent
+        // CATATAN KEAMANAN: password TIDAK dikirim via Intent (rentan disadap)
         regName = getIntent().getStringExtra("name");
-        regPassword = getIntent().getStringExtra("password");
         regPhone = getIntent().getStringExtra("phone");
 
         if (regPhone != null) {
@@ -115,11 +116,11 @@ public class OtpActivity extends AppCompatActivity {
     }
 
     private void saveUserToDatabase(String uid) {
-        // Jika data pendaftaran lengkap, simpan ke Database
-        if (regName != null && regPassword != null) {
+        // Simpan data profil user ke Realtime Database
+        // CATATAN KEAMANAN: password TIDAK disimpan di sini, sudah dikelola Firebase Auth
+        if (regName != null) {
             java.util.Map<String, Object> userData = new java.util.HashMap<>();
             userData.put("name", regName);
-            userData.put("password", regPassword);
             userData.put("phone", regPhone != null ? regPhone : edtPhone.getText().toString().trim());
             userData.put("role", "user");
             userData.put("createdAt", com.google.firebase.database.ServerValue.TIMESTAMP);
@@ -129,7 +130,7 @@ public class OtpActivity extends AppCompatActivity {
                     Toast.makeText(this, "Pendaftaran Berhasil!", Toast.LENGTH_SHORT).show();
                     goToMainActivity();
                 } else {
-                    Toast.makeText(this, "Gagal simpan data: " + task.getException().getMessage(), Toast.LENGTH_SHORT).show();
+                    Toast.makeText(this, "Gagal menyimpan data. Coba lagi nanti.", Toast.LENGTH_SHORT).show();
                 }
             });
         } else {

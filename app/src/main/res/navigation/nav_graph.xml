@@ -46,6 +46,26 @@
             app:destination="@id/mainTabFragment"
             app:popUpTo="@id/welcomeFragment"
             app:popUpToInclusive="true" />
+        <action
+            android:id="@+id/action_login_to_forgotPassword"
+            app:destination="@id/forgotPasswordFragment"
+            app:enterAnim="@anim/slide_in_right"
+            app:exitAnim="@anim/slide_out_left"
+            app:popEnterAnim="@anim/slide_in_left"
+            app:popExitAnim="@anim/slide_out_right" />
+    </fragment>
+
+    <fragment
+        android:id="@+id/forgotPasswordFragment"
+        android:name="com.example.itprojek2.ui.auth.ForgotPasswordFragment"
+        android:label="Lupa Password">
+        <action
+            android:id="@+id/action_forgotPassword_to_login"
+            app:destination="@id/loginFragment"
+            app:popUpTo="@id/loginFragment"
+            app:popUpToInclusive="true"
+            app:enterAnim="@anim/slide_in_left"
+            app:exitAnim="@anim/slide_out_right" />
     </fragment>
 
     <fragment

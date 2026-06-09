@@ -1,18 +1,25 @@
 package com.example.itprojek2.ui.profile;
 
 import android.app.AlertDialog;
+import android.content.Context;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.os.Bundle;
+import android.text.InputType;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.widget.EditText;
 import android.widget.Toast;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 import androidx.navigation.Navigation;
 import com.example.itprojek2.R;
+import com.google.firebase.auth.AuthCredential;
+import com.google.firebase.auth.EmailAuthProvider;
+import com.google.firebase.auth.FirebaseAuth;
+import com.google.firebase.auth.FirebaseUser;
 
 public class ProfileFragment extends Fragment {
 
@@ -163,20 +170,91 @@ public class ProfileFragment extends Fragment {
     }
 
     private void showDeleteAccountDialog() {
+        // Minta konfirmasi password sebelum menghapus akun (wajib untuk re-auth Firebase)
         AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        View dialogView = getLayoutInflater().inflate(R.layout.dialog_delete_account, null);
-        builder.setView(dialogView);
-        
+        builder.setTitle("Hapus Akun");
+        builder.setMessage("Masukkan password kamu untuk konfirmasi penghapusan akun. Tindakan ini TIDAK BISA dibatalkan.");
+
+        // Input password
+        EditText etPassword = new EditText(requireContext());
+        etPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
+        etPassword.setHint("Password kamu");
+        int paddingPx = (int) (16 * getResources().getDisplayMetrics().density);
+        etPassword.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
+        builder.setView(etPassword);
+
+        builder.setPositiveButton("Hapus Akun", null); // null dulu, di-handle manual
+        builder.setNegativeButton("Batal", (dialog, which) -> dialog.dismiss());
+
         AlertDialog dialog = builder.create();
-        if (dialog.getWindow() != null) {
-            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
-        }
-
-        dialogView.findViewById(R.id.btnDeleteConfirm).setOnClickListener(v -> {
-            Toast.makeText(getContext(), "Akun berhasil dihapus", Toast.LENGTH_SHORT).show();
-            dialog.dismiss();
-        });
-
         dialog.show();
+
+        // Override positiveButton agar dialog tidak langsung tutup saat validasi gagal
+        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+            String password = etPassword.getText().toString();
+            if (password.isEmpty()) {
+                etPassword.setError("Password tidak boleh kosong");
+                return;
+            }
+
+            FirebaseUser user = FirebaseAuth.getInstance().getCurrentUser();
+            if (user == null || user.getEmail() == null) {
+                Toast.makeText(getContext(), "Sesi tidak ditemukan, silakan login ulang.", Toast.LENGTH_SHORT).show();
+                dialog.dismiss();
+                return;
+            }
+
+            // Re-autentikasi dulu sebelum hapus (wajib oleh Firebase)
+            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+            AuthCredential credential = EmailAuthProvider.getCredential(user.getEmail(), password);
+            user.reauthenticate(credential).addOnCompleteListener(reAuthTask -> {
+                if (!isAdded()) return;
+                if (reAuthTask.isSuccessful()) {
+                    String uid = user.getUid();
+
+                    // Step 1: Hapus data user dari Realtime Database
+                    com.google.firebase.database.FirebaseDatabase.getInstance()
+                            .getReference("users").child(uid)
+                            .removeValue()
+                            .addOnCompleteListener(dbTask -> {
+                                if (!isAdded()) return;
+
+                                // Step 2: Hapus akun dari Firebase Auth
+                                user.delete().addOnCompleteListener(deleteTask -> {
+                                    if (!isAdded()) return;
+                                    dialog.dismiss();
+                                    if (deleteTask.isSuccessful()) {
+                                        // Step 3: Bersihkan sesi lokal
+                                        requireActivity()
+                                                .getSharedPreferences("UserSession", Context.MODE_PRIVATE)
+                                                .edit().clear().apply();
+
+                                        Toast.makeText(getContext(),
+                                                "Akun berhasil dihapus.",
+                                                Toast.LENGTH_LONG).show();
+
+                                        // Kembali ke Welcome
+                                        android.content.Intent intent = new android.content.Intent(
+                                                requireActivity(), com.example.itprojek2.MainActivity.class);
+                                        intent.setFlags(android.content.Intent.FLAG_ACTIVITY_NEW_TASK
+                                                | android.content.Intent.FLAG_ACTIVITY_CLEAR_TASK);
+                                        startActivity(intent);
+                                        requireActivity().finish();
+                                    } else {
+                                        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                                        Toast.makeText(getContext(),
+                                                "Gagal menghapus akun. Coba lagi nanti.",
+                                                Toast.LENGTH_SHORT).show();
+                                    }
+                                });
+                            });
+                } else {
+                    // Re-auth gagal = password salah
+                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                    etPassword.setError("Password salah");
+                    Toast.makeText(getContext(), "Password tidak sesuai.", Toast.LENGTH_SHORT).show();
+                }
+            });
+        });
     }
 }

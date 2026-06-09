@@ -62,9 +62,9 @@ public class ChangePasswordFragment extends Fragment {
 
         View btnSave = view.findViewById(R.id.btnSavePassword);
         btnSave.setOnClickListener(v -> {
-            String oldPass = etOld.getText().toString().trim();
-            String newPass = etNew.getText().toString().trim();
-            String confirmPass = etConfirm.getText().toString().trim();
+            String oldPass     = etOld.getText().toString();
+            String newPass     = etNew.getText().toString();
+            String confirmPass = etConfirm.getText().toString();
 
             // Validasi input
             if (oldPass.isEmpty()) {
@@ -77,8 +77,10 @@ public class ChangePasswordFragment extends Fragment {
                 etNew.requestFocus();
                 return;
             }
-            if (newPass.length() < 6) {
-                etNew.setError("Password baru minimal 6 karakter");
+            // Validasi rules password baru (konsisten dengan aturan saat registrasi)
+            String passwordError = validatePassword(newPass);
+            if (passwordError != null) {
+                etNew.setError(passwordError);
                 etNew.requestFocus();
                 return;
             }
@@ -143,5 +145,34 @@ public class ChangePasswordFragment extends Fragment {
             icon.setImageResource(R.drawable.ic_visibility_off);
         }
         editText.setSelection(editText.getText().length());
+    }
+
+    /**
+     * Validasi rules password (konsisten dengan RegisterFragment):
+     * - Minimal 8 karakter
+     * - Wajib ada huruf kapital (A-Z)
+     * - Wajib ada huruf kecil (a-z)
+     * - Wajib ada angka (0-9)
+     * - TIDAK boleh mengandung simbol atau spasi
+     *
+     * @return pesan error jika tidak valid, null jika valid
+     */
+    private String validatePassword(String password) {
+        if (password.length() < 8) {
+            return "Password minimal 8 karakter";
+        }
+        if (!password.matches(".*[A-Z].*")) {
+            return "Password wajib mengandung minimal 1 huruf kapital (A-Z)";
+        }
+        if (!password.matches(".*[a-z].*")) {
+            return "Password wajib mengandung minimal 1 huruf kecil (a-z)";
+        }
+        if (!password.matches(".*[0-9].*")) {
+            return "Password wajib mengandung minimal 1 angka (0-9)";
+        }
+        if (!password.matches("[a-zA-Z0-9]+")) {
+            return "Password tidak boleh mengandung simbol atau spasi";
+        }
+        return null; // Password valid
     }
 }
