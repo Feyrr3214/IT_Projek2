@@ -13,3 +13,14 @@
 .externalNativeBuild
 .cxx
 local.properties
+
+# Firebase & Agents (tidak perlu di-push)
+.agents/
+.firebase/
+.firebaserc
+firebase.json
+dataconnect/
+skills-lock.json
+
+# Kotlin (jika tidak dipakai)
+app/src/main/kotlin/
