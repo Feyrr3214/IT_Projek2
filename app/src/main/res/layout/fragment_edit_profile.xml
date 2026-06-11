@@ -177,7 +177,11 @@
                     android:hint="Masukkan Email"
                     android:inputType="textEmailAddress"
                     android:textColor="@color/text_dark"
-                    android:textSize="14sp" />
+                    android:textSize="14sp"
+                    android:focusable="false"
+                    android:clickable="false"
+                    android:cursorVisible="false"
+                    android:enabled="false"/>
             </LinearLayout>
 
             <!-- Simpan Perubahan Button -->

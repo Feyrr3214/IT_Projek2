@@ -160,15 +160,9 @@ public class EditProfileFragment extends Fragment {
 
     private void saveProfileData(View view) {
         String name  = etName.getText().toString().trim();
-        String email = etEmail.getText().toString().trim();
 
-        if (name.isEmpty() || email.isEmpty()) {
-            Toast.makeText(getContext(), "Nama dan Email tidak boleh kosong", Toast.LENGTH_SHORT).show();
-            return;
-        }
-
-        if (!android.util.Patterns.EMAIL_ADDRESS.matcher(email).matches()) {
-            Toast.makeText(getContext(), "Format email tidak valid", Toast.LENGTH_SHORT).show();
+        if (name.isEmpty()) {
+            Toast.makeText(getContext(), "Nama tidak boleh kosong", Toast.LENGTH_SHORT).show();
             return;
         }
 
@@ -176,7 +170,6 @@ public class EditProfileFragment extends Fragment {
 
         java.util.HashMap<String, Object> updates = new java.util.HashMap<>();
         updates.put("name", name);
-        updates.put("email", email);
         if (base64Avatar != null) {
             updates.put("avatar", base64Avatar);
         }

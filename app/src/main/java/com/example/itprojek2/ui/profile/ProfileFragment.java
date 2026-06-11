@@ -170,27 +170,19 @@ public class ProfileFragment extends Fragment {
     }
 
     private void showDeleteAccountDialog() {
-        // Minta konfirmasi password sebelum menghapus akun (wajib untuk re-auth Firebase)
         AlertDialog.Builder builder = new AlertDialog.Builder(requireContext());
-        builder.setTitle("Hapus Akun");
-        builder.setMessage("Masukkan password kamu untuk konfirmasi penghapusan akun. Tindakan ini TIDAK BISA dibatalkan.");
-
-        // Input password
-        EditText etPassword = new EditText(requireContext());
-        etPassword.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_VARIATION_PASSWORD);
-        etPassword.setHint("Password kamu");
-        int paddingPx = (int) (16 * getResources().getDisplayMetrics().density);
-        etPassword.setPadding(paddingPx, paddingPx, paddingPx, paddingPx);
-        builder.setView(etPassword);
-
-        builder.setPositiveButton("Hapus Akun", null); // null dulu, di-handle manual
-        builder.setNegativeButton("Batal", (dialog, which) -> dialog.dismiss());
+        View dialogView = getLayoutInflater().inflate(R.layout.dialog_delete_account, null);
+        builder.setView(dialogView);
 
         AlertDialog dialog = builder.create();
-        dialog.show();
+        if (dialog.getWindow() != null) {
+            dialog.getWindow().setBackgroundDrawable(new ColorDrawable(Color.TRANSPARENT));
+        }
 
-        // Override positiveButton agar dialog tidak langsung tutup saat validasi gagal
-        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setOnClickListener(v -> {
+        EditText etPassword = dialogView.findViewById(R.id.etDeletePassword);
+
+        dialogView.findViewById(R.id.btnCancel).setOnClickListener(v -> dialog.dismiss());
+        dialogView.findViewById(R.id.btnDeleteConfirm).setOnClickListener(v -> {
             String password = etPassword.getText().toString();
             if (password.isEmpty()) {
                 etPassword.setError("Password tidak boleh kosong");
@@ -205,7 +197,7 @@ public class ProfileFragment extends Fragment {
             }
 
             // Re-autentikasi dulu sebelum hapus (wajib oleh Firebase)
-            dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(false);
+            dialogView.findViewById(R.id.btnDeleteConfirm).setEnabled(false);
             AuthCredential credential = EmailAuthProvider.getCredential(user.getEmail(), password);
             user.reauthenticate(credential).addOnCompleteListener(reAuthTask -> {
                 if (!isAdded()) return;
@@ -241,7 +233,7 @@ public class ProfileFragment extends Fragment {
                                         startActivity(intent);
                                         requireActivity().finish();
                                     } else {
-                                        dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                                        dialogView.findViewById(R.id.btnDeleteConfirm).setEnabled(true);
                                         Toast.makeText(getContext(),
                                                 "Gagal menghapus akun. Coba lagi nanti.",
                                                 Toast.LENGTH_SHORT).show();
@@ -250,11 +242,13 @@ public class ProfileFragment extends Fragment {
                             });
                 } else {
                     // Re-auth gagal = password salah
-                    dialog.getButton(AlertDialog.BUTTON_POSITIVE).setEnabled(true);
+                    dialogView.findViewById(R.id.btnDeleteConfirm).setEnabled(true);
                     etPassword.setError("Password salah");
                     Toast.makeText(getContext(), "Password tidak sesuai.", Toast.LENGTH_SHORT).show();
                 }
             });
         });
+
+        dialog.show();
     }
 }
