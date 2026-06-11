@@ -103,7 +103,7 @@
         android:layout_height="300dp"
         android:clipToPadding="false"
         android:paddingBottom="16dp"
-        android:visibility="gone" />
+         />
 
     <!-- Tidak ada jaringan -->
     <LinearLayout
@@ -112,7 +112,7 @@
         android:layout_height="150dp"
         android:orientation="vertical"
         android:gravity="center"
-        android:visibility="gone">
+        >
 
         <ImageView
             android:layout_width="36dp"
@@ -145,7 +145,7 @@
         android:layout_height="150dp"
         android:orientation="vertical"
         android:gravity="center"
-        android:visibility="gone">
+        >
 
         <ImageView
             android:layout_width="36dp"

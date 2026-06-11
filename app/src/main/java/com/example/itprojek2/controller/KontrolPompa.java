@@ -1,6 +1,6 @@
 package com.example.itprojek2.controller;
 
-import android.util.Log;
+import com.example.itprojek2.controller.AppLogger;
 import androidx.annotation.Nullable;
 import com.google.firebase.database.DatabaseReference;
 
@@ -40,12 +40,12 @@ public class KontrolPompa {
 
         refKontrol.updateChildren(updates)
                 .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Mode " + modeName + " = " + isEnabled);
+                    AppLogger.d(TAG, "Mode " + modeName + " = " + isEnabled);
                     if (listener != null)
                         listener.onSuccess();
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal set mode: " + e.getMessage());
+                    AppLogger.e(TAG, "Gagal set mode: " + e.getMessage());
                     if (listener != null)
                         listener.onFailure(e.getMessage());
                 });

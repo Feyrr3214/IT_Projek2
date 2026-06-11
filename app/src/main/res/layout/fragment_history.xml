@@ -67,7 +67,7 @@
             android:layout_width="wrap_content"
             android:layout_height="wrap_content"
             android:text="Hapus"
-            android:visibility="gone"
+            
             app:cornerRadius="12dp"
             style="@style/ButtonDanger" />
 
@@ -98,7 +98,7 @@
         android:gravity="center"
         android:orientation="vertical"
         android:paddingHorizontal="32dp"
-        android:visibility="gone">
+        >
 
         <ImageView
             android:layout_width="96dp"

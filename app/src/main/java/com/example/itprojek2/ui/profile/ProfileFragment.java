@@ -110,7 +110,7 @@ public class ProfileFragment extends Fragment {
                         ivAvatar.setScaleType(android.widget.ImageView.ScaleType.CENTER_CROP);
                         
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        com.example.itprojek2.controller.AppLogger.e("ProfileFragment", "Gagal decode avatar: " + e.getMessage());
                     }
                 }
 

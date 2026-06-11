@@ -30,6 +30,7 @@ import androidx.recyclerview.widget.LinearLayoutManager;
 import androidx.recyclerview.widget.RecyclerView;
 
 import com.example.itprojek2.R;
+import com.example.itprojek2.controller.AppLogger;
 import com.example.itprojek2.databinding.FragmentDeviceSetupBinding;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 
@@ -464,7 +465,7 @@ public class DeviceSetupFragment extends Fragment {
     }
 
     private void appendLog(String message) {
-        android.util.Log.d("DeviceSetup", message);
+        AppLogger.d("DeviceSetup", message);
     }
 
     private void appendLogFromThread(String message) {

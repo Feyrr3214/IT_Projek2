@@ -1,6 +1,6 @@
 package com.example.itprojek2.controller;
 
-import android.util.Log;
+import com.example.itprojek2.controller.AppLogger;
 import androidx.annotation.NonNull;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -95,14 +95,14 @@ public class PendengarStatus {
 
                         long sekarangMs  = System.currentTimeMillis() + offsetWaktuServer;
                         long selisihDetik = Math.abs(sekarangMs - lastPingMs) / 1000;
-                        Log.d(TAG, "Selisih lastPing: " + selisihDetik + " detik");
+                        AppLogger.d(TAG, "Selisih lastPing: " + selisihDetik + " detik");
 
                         // > 12 detik → anggap offline
                         sedangOnline = selisihDetik <= 12;
 
                     } else if (lastPingRaw == -1) {
                         // NTP di ESP32 belum sinkron → gunakan field "online"
-                        Log.d(TAG, "lastPing=-1 (NTP belum sync), pakai field online: " + sedangOnline);
+                        AppLogger.d(TAG, "lastPing=-1 (NTP belum sync), pakai field online: " + sedangOnline);
                     } else {
                         // lastPing = 0 → data hantu/lama → OFFLINE
                         sedangOnline = false;
@@ -133,7 +133,7 @@ public class PendengarStatus {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Error listener status: " + error.getMessage());
+                AppLogger.e(TAG, "Error listener status: " + error.getMessage());
                 listener.onError(error.getMessage());
             }
         };
@@ -173,7 +173,7 @@ public class PendengarStatus {
                 Object val = child.getValue();
                 if (val instanceof Number) return ((Number) val).intValue();
             } catch (Exception e) {
-                Log.w(TAG, "Gagal baca int kunci '" + kunci + "': " + e.getMessage());
+                AppLogger.w(TAG, "Gagal baca int kunci '" + kunci + "': " + e.getMessage());
             }
         }
         return def;

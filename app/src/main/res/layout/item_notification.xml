@@ -63,7 +63,7 @@
                     android:textColor="@color/text_gray"
                     android:textSize="11sp"
                     android:gravity="end"
-                    android:visibility="gone" />
+                     />
             </LinearLayout>
 
             <TextView

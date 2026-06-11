@@ -1,6 +1,6 @@
 package com.example.itprojek2.controller;
 
-import android.util.Log;
+import com.example.itprojek2.controller.AppLogger;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.google.firebase.database.DataSnapshot;
@@ -44,11 +44,11 @@ public class KontrolKelembaban {
 
         refKontrol.child("threshold").setValue(batas)
                 .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Batas kelembaban disimpan: min=" + nilaiMin + " max=" + nilaiMax);
+                    AppLogger.d(TAG, "Batas kelembaban disimpan: min=" + nilaiMin + " max=" + nilaiMax);
                     if (listener != null) listener.onSuccess();
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal simpan batas kelembaban: " + e.getMessage());
+                    AppLogger.e(TAG, "Gagal simpan batas kelembaban: " + e.getMessage());
                     if (listener != null) listener.onFailure(e.getMessage());
                 });
     }
@@ -68,13 +68,13 @@ public class KontrolKelembaban {
                     min = ambilInt(snapshot, "minMoisture", 30);
                     max = ambilInt(snapshot, "maxMoisture", 70);
                 }
-                Log.d(TAG, "Batas kelembaban dibaca: min=" + min + " max=" + max);
+                AppLogger.d(TAG, "Batas kelembaban dibaca: min=" + min + " max=" + max);
                 listener.onLoaded(min, max);
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Gagal baca batas kelembaban: " + error.getMessage());
+                AppLogger.e(TAG, "Gagal baca batas kelembaban: " + error.getMessage());
                 listener.onLoaded(30, 70); // Fallback ke default
             }
         });
@@ -97,7 +97,7 @@ public class KontrolKelembaban {
             }
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Listen batas gagal: " + error.getMessage());
+                AppLogger.e(TAG, "Listen batas gagal: " + error.getMessage());
             }
         };
         refKontrol.child("threshold").addValueEventListener(listenerBatas);
@@ -125,7 +125,7 @@ public class KontrolKelembaban {
                 Object val = child.getValue();
                 if (val instanceof Number) return ((Number) val).intValue();
             } catch (Exception e) {
-                Log.w(TAG, "Gagal baca int untuk kunci '" + kunci + "': " + e.getMessage());
+                AppLogger.w(TAG, "Gagal baca int untuk kunci '" + kunci + "': " + e.getMessage());
             }
         }
         return def;

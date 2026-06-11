@@ -9,11 +9,11 @@ import android.view.View;
 
 import java.util.ArrayList;
 import java.util.List;
-import java.util.Random;
+import java.security.SecureRandom;
 
 public class MoistureBubblesView extends View {
     private List<Bubble> bubbles = new ArrayList<>();
-    private Random random = new Random();
+    private SecureRandom random = new SecureRandom();
     private Paint paint;
     private long lastTime;
 

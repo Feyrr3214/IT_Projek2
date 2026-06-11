@@ -146,7 +146,7 @@ public class EditProfileFragment extends Fragment {
                         ivEditAvatar.setImageBitmap(decodedByte);
                         base64Avatar = avatar; // simpan referensi jika gak diganti
                     } catch (Exception e) {
-                        e.printStackTrace();
+                        com.example.itprojek2.controller.AppLogger.e("EditProfile", "Gagal decode avatar: " + e.getMessage());
                     }
                 }
             }

@@ -23,6 +23,6 @@
         android:id="@+id/pbScanning"
         android:layout_width="16dp"
         android:layout_height="16dp"
-        android:visibility="gone"
+        
         style="?android:attr/progressBarStyleSmall" />
 </LinearLayout>

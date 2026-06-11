@@ -1,6 +1,6 @@
 package com.example.itprojek2.controller;
 
-import android.util.Log;
+import com.example.itprojek2.controller.AppLogger;
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
 import com.google.firebase.database.DataSnapshot;
@@ -37,11 +37,11 @@ public class KontrolJadwal {
         ModelJadwal jadwal = new ModelJadwal(newId, jam, menit, detik, aktif);
         refSchedules.child(newId).setValue(jadwal)
                 .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Jadwal ditambahkan: " + newId);
+                    AppLogger.d(TAG, "Jadwal ditambahkan: " + newId);
                     if (listener != null) listener.onSuccess();
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal tambah jadwal: " + e.getMessage());
+                    AppLogger.e(TAG, "Gagal tambah jadwal: " + e.getMessage());
                     if (listener != null) listener.onFailure(e.getMessage());
                 });
     }
@@ -54,11 +54,11 @@ public class KontrolJadwal {
         ModelJadwal jadwal = new ModelJadwal(id, jam, menit, detik, aktif);
         refSchedules.child(id).setValue(jadwal)
                 .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Jadwal diupdate: " + id);
+                    AppLogger.d(TAG, "Jadwal diupdate: " + id);
                     if (listener != null) listener.onSuccess();
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal update jadwal: " + e.getMessage());
+                    AppLogger.e(TAG, "Gagal update jadwal: " + e.getMessage());
                     if (listener != null) listener.onFailure(e.getMessage());
                 });
     }
@@ -69,11 +69,11 @@ public class KontrolJadwal {
         
         refSchedules.child(id).removeValue()
                 .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Jadwal dihapus: " + id);
+                    AppLogger.d(TAG, "Jadwal dihapus: " + id);
                     if (listener != null) listener.onSuccess();
                 })
                 .addOnFailureListener(e -> {
-                    Log.e(TAG, "Gagal hapus jadwal: " + e.getMessage());
+                    AppLogger.e(TAG, "Gagal hapus jadwal: " + e.getMessage());
                     if (listener != null) listener.onFailure(e.getMessage());
                 });
     }
@@ -104,13 +104,13 @@ public class KontrolJadwal {
                     return Integer.compare(a.getMinute(), b.getMinute());
                 });
                 
-                Log.d(TAG, "Berhasil memuat " + list.size() + " jadwal");
+                AppLogger.d(TAG, "Berhasil memuat " + list.size() + " jadwal");
                 listener.onLoaded(list);
             }
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Gagal melisten daftar jadwal: " + error.getMessage());
+                AppLogger.e(TAG, "Gagal melisten daftar jadwal: " + error.getMessage());
                 listener.onLoaded(new java.util.ArrayList<>());
             }
         };

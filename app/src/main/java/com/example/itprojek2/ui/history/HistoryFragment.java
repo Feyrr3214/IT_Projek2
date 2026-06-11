@@ -38,6 +38,9 @@ public class HistoryFragment extends Fragment {
     public void onViewCreated(@NonNull View view, @Nullable Bundle savedInstanceState) {
         super.onViewCreated(view, savedInstanceState);
 
+        // Set initial visibility (dipindah dari XML ke runtime)
+        binding.btnDeleteSelected.setVisibility(View.GONE);
+        binding.layoutEmptyHistory.setVisibility(View.GONE);
         historyList = new ArrayList<>();
         adapter = new HistoryAdapter(historyList);
         binding.rvHistory.setLayoutManager(new LinearLayoutManager(getContext()));

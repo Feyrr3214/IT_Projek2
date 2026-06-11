@@ -7,7 +7,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
 import android.os.Build;
-import android.util.Log;
+import com.example.itprojek2.controller.AppLogger;
 import androidx.annotation.NonNull;
 import androidx.core.app.NotificationCompat;
 import androidx.core.app.NotificationManagerCompat;
@@ -126,7 +126,7 @@ public class ManajerNotifikasi {
         kirim(ID_NOTIF_KERING, judul, isi, R.drawable.ic_water_drop, new int[]{255, 230, 115, 0});
         simpanKeFirebase(judul, isi, "WARNING");
         simpanWaktuNotif(KEY_KERING);
-        Log.d(TAG, "Notifikasi KERING dikirim: " + kelembaban + "%");
+        AppLogger.d(TAG, "Notifikasi KERING dikirim: " + kelembaban + "%");
     }
 
     private void kirimNotifikasiBasah(int kelembaban, int batasMax) {
@@ -139,7 +139,7 @@ public class ManajerNotifikasi {
         kirim(ID_NOTIF_BASAH, judul, isi, R.drawable.ic_alert_triangle, new int[]{255, 0, 122, 255});
         simpanKeFirebase(judul, isi, "CRITICAL");
         simpanWaktuNotif(KEY_BASAH);
-        Log.d(TAG, "Notifikasi BASAH dikirim: " + kelembaban + "%");
+        AppLogger.d(TAG, "Notifikasi BASAH dikirim: " + kelembaban + "%");
     }
 
     // ─── Event Manual (dipanggil dari luar) ──────────────────────────────────
@@ -235,7 +235,7 @@ public class ManajerNotifikasi {
                         item.date      = ambilString(child, "date", "-");
                         list.add(0, item); // Paling baru di atas
                     } catch (Exception e) {
-                        Log.w(TAG, "Gagal parse notif: " + e.getMessage());
+                        AppLogger.w(TAG, "Gagal parse notif: " + e.getMessage());
                     }
                 }
                 listener.onLoaded(list);
@@ -263,7 +263,7 @@ public class ManajerNotifikasi {
         if (refNotifications == null) return;
         refNotifications.removeValue()
                 .addOnSuccessListener(unused -> { if (onSelesai != null) onSelesai.run(); })
-                .addOnFailureListener(e -> Log.e(TAG, "Gagal hapus semua notif: " + e.getMessage()));
+                .addOnFailureListener(e -> AppLogger.e(TAG, "Gagal hapus semua notif: " + e.getMessage()));
     }
 
     /** Hapus satu notifikasi dari Firebase berdasarkan push key */
@@ -271,7 +271,7 @@ public class ManajerNotifikasi {
         if (refNotifications == null || pushKey == null) return;
         refNotifications.child(pushKey).removeValue()
                 .addOnSuccessListener(unused -> { if (onSelesai != null) onSelesai.run(); })
-                .addOnFailureListener(e -> Log.e(TAG, "Gagal hapus notif: " + e.getMessage()));
+                .addOnFailureListener(e -> AppLogger.e(TAG, "Gagal hapus notif: " + e.getMessage()));
     }
 
     // ─── Internal ─────────────────────────────────────────────────────────────
@@ -294,10 +294,10 @@ public class ManajerNotifikasi {
 
         refNotifications.push().setValue(data)
                 .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Notif disimpan ke Firebase: " + judul);
+                    AppLogger.d(TAG, "Notif disimpan ke Firebase: " + judul);
                     trimDataLama(); // Hapus otomatis data yang sudah terlalu lama
                 })
-                .addOnFailureListener(e -> Log.e(TAG, "Gagal simpan notif: " + e.getMessage()));
+                .addOnFailureListener(e -> AppLogger.e(TAG, "Gagal simpan notif: " + e.getMessage()));
     }
 
     /**
@@ -317,12 +317,12 @@ public class ManajerNotifikasi {
                             child.getRef().removeValue();
                         }
                         if (jumlah > 0) {
-                            Log.d(TAG, "Auto-trim: " + jumlah + " notifikasi lama (>30 hari) dihapus.");
+                            AppLogger.d(TAG, "Auto-trim: " + jumlah + " notifikasi lama (>30 hari) dihapus.");
                         }
                     }
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
-                        Log.w(TAG, "Trim gagal: " + error.getMessage());
+                        AppLogger.w(TAG, "Trim gagal: " + error.getMessage());
                     }
                 });
     }
@@ -364,7 +364,7 @@ public class ManajerNotifikasi {
                 if (androidx.core.content.ContextCompat.checkSelfPermission(context,
                         android.Manifest.permission.POST_NOTIFICATIONS)
                         != android.content.pm.PackageManager.PERMISSION_GRANTED) {
-                    Log.w(TAG, "Izin POST_NOTIFICATIONS belum diberikan.");
+                    AppLogger.w(TAG, "Izin POST_NOTIFICATIONS belum diberikan.");
                     return;
                 }
             }
@@ -372,7 +372,7 @@ public class ManajerNotifikasi {
             managerCompat.notify(notifId, builder.build());
 
         } catch (Exception e) {
-            Log.e(TAG, "Gagal tampilkan notifikasi: " + e.getMessage());
+            AppLogger.e(TAG, "Gagal tampilkan notifikasi: " + e.getMessage());
         }
     }
 

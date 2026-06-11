@@ -104,7 +104,7 @@
             android:divider="@color/background_light"
             android:dividerHeight="1dp"
             android:scrollbars="vertical"
-            android:visibility="gone" />
+             />
 
         <!-- Tidak ada jaringan -->
         <LinearLayout
@@ -114,7 +114,7 @@
             android:orientation="vertical"
             android:gravity="center"
             android:padding="16dp"
-            android:visibility="gone">
+            >
 
             <ImageView
                 android:layout_width="48dp"
@@ -147,7 +147,7 @@
             android:layout_height="150dp"
             android:orientation="vertical"
             android:gravity="center"
-            android:visibility="gone">
+            >
 
             <ImageView
                 android:layout_width="36dp"
@@ -182,7 +182,7 @@
             android:layout_height="150dp"
             android:orientation="vertical"
             android:gravity="center"
-            android:visibility="gone">
+            >
 
             <ImageView
                 android:layout_width="36dp"
@@ -226,7 +226,7 @@
             android:background="@color/background_light"
             android:layout_marginBottom="12dp"
             android:layout_marginTop="4dp"
-            android:visibility="gone" />
+             />
 
         <!-- WiFi yang Dipilih -->
         <LinearLayout
@@ -238,7 +238,7 @@
             android:background="@drawable/shape_badge_moisture_max"
             android:padding="10dp"
             android:layout_marginBottom="12dp"
-            android:visibility="gone">
+            >
 
             <ImageView
                 android:layout_width="20dp"
@@ -279,7 +279,7 @@
             app:boxCornerRadiusTopStart="16dp"
             app:endIconMode="password_toggle"
             app:startIconDrawable="@drawable/ic_password_dots"
-            android:visibility="gone">
+            >
 
             <com.google.android.material.textfield.TextInputEditText
                 android:id="@+id/etPass"

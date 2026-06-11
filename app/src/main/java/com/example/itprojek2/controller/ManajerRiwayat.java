@@ -1,6 +1,6 @@
 package com.example.itprojek2.controller;
 
-import android.util.Log;
+import com.example.itprojek2.controller.AppLogger;
 import androidx.annotation.NonNull;
 import com.google.firebase.database.DataSnapshot;
 import com.google.firebase.database.DatabaseError;
@@ -79,10 +79,10 @@ public class ManajerRiwayat {
 
         refHistory.push().setValue(data)
                 .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Riwayat disimpan: " + message);
+                    AppLogger.d(TAG, "Riwayat disimpan: " + message);
                     trimDataLama(); // Hapus otomatis data yang sudah terlalu lama
                 })
-                .addOnFailureListener(e -> Log.e(TAG, "Gagal simpan riwayat: " + e.getMessage()));
+                .addOnFailureListener(e -> AppLogger.e(TAG, "Gagal simpan riwayat: " + e.getMessage()));
     }
 
     /**
@@ -101,12 +101,12 @@ public class ManajerRiwayat {
                             child.getRef().removeValue();
                         }
                         if (jumlah > 0) {
-                            Log.d(TAG, "Auto-trim: " + jumlah + " riwayat lama (>30 hari) dihapus.");
+                            AppLogger.d(TAG, "Auto-trim: " + jumlah + " riwayat lama (>30 hari) dihapus.");
                         }
                     }
                     @Override
                     public void onCancelled(@NonNull DatabaseError error) {
-                        Log.w(TAG, "Trim gagal: " + error.getMessage());
+                        AppLogger.w(TAG, "Trim gagal: " + error.getMessage());
                     }
                 });
     }
@@ -132,7 +132,7 @@ public class ManajerRiwayat {
                         item.type = ambilString(child, "type", "pump");
                         list.add(0, item); // Paling baru di atas
                     } catch (Exception e) {
-                        Log.w(TAG, "Gagal parse item: " + e.getMessage());
+                        AppLogger.w(TAG, "Gagal parse item: " + e.getMessage());
                     }
                 }
                 listener.onLoaded(list);
@@ -140,7 +140,7 @@ public class ManajerRiwayat {
 
             @Override
             public void onCancelled(@NonNull DatabaseError error) {
-                Log.e(TAG, "Error listen history: " + error.getMessage());
+                AppLogger.e(TAG, "Error listen history: " + error.getMessage());
                 listener.onError(error.getMessage());
             }
         };
@@ -154,10 +154,10 @@ public class ManajerRiwayat {
     public void hapus(String pushKey, Runnable onSelesai) {
         refHistory.child(pushKey).removeValue()
                 .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Riwayat dihapus: " + pushKey);
+                    AppLogger.d(TAG, "Riwayat dihapus: " + pushKey);
                     if (onSelesai != null) onSelesai.run();
                 })
-                .addOnFailureListener(e -> Log.e(TAG, "Gagal hapus: " + e.getMessage()));
+                .addOnFailureListener(e -> AppLogger.e(TAG, "Gagal hapus: " + e.getMessage()));
     }
 
     /**
@@ -166,10 +166,10 @@ public class ManajerRiwayat {
     public void hapusSemua(Runnable onSelesai) {
         refHistory.removeValue()
                 .addOnSuccessListener(unused -> {
-                    Log.d(TAG, "Semua riwayat dihapus.");
+                    AppLogger.d(TAG, "Semua riwayat dihapus.");
                     if (onSelesai != null) onSelesai.run();
                 })
-                .addOnFailureListener(e -> Log.e(TAG, "Gagal hapus semua: " + e.getMessage()));
+                .addOnFailureListener(e -> AppLogger.e(TAG, "Gagal hapus semua: " + e.getMessage()));
     }
 
     /**
@@ -186,10 +186,10 @@ public class ManajerRiwayat {
         }
         refHistory.updateChildren(updates)
                 .addOnSuccessListener(unused -> {
-                    Log.d(TAG, keys.size() + " riwayat dihapus.");
+                    AppLogger.d(TAG, keys.size() + " riwayat dihapus.");
                     if (onSelesai != null) onSelesai.run();
                 })
-                .addOnFailureListener(e -> Log.e(TAG, "Gagal hapus beberapa: " + e.getMessage()));
+                .addOnFailureListener(e -> AppLogger.e(TAG, "Gagal hapus beberapa: " + e.getMessage()));
     }
 
     /** Hentikan listener — panggil di onDestroyView() */

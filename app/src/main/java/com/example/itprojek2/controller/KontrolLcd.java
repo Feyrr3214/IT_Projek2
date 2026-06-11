@@ -1,6 +1,6 @@
 package com.example.itprojek2.controller;
 
-import android.util.Log;
+import com.example.itprojek2.controller.AppLogger;
 import com.google.firebase.database.DatabaseReference;
 
 /**
@@ -36,8 +36,8 @@ public class KontrolLcd {
         String gabungan = aman1 + "|" + aman2;
 
         refKontrol.child("lcdMessage").setValue(gabungan)
-                .addOnSuccessListener(unused -> Log.d(TAG, "Pesan LCD terkirim: " + gabungan))
-                .addOnFailureListener(e -> Log.e(TAG, "Gagal kirim pesan LCD: " + e.getMessage()));
+                .addOnSuccessListener(unused -> AppLogger.d(TAG, "Pesan LCD terkirim: " + gabungan))
+                .addOnFailureListener(e -> AppLogger.e(TAG, "Gagal kirim pesan LCD: " + e.getMessage()));
     }
 
     /**
@@ -55,8 +55,8 @@ public class KontrolLcd {
      */
     public void hapusPesan() {
         refKontrol.child("lcdMessage").setValue("")
-                .addOnSuccessListener(unused -> Log.d(TAG, "Pesan LCD dihapus"))
-                .addOnFailureListener(e -> Log.e(TAG, "Gagal hapus pesan LCD: " + e.getMessage()));
+                .addOnSuccessListener(unused -> AppLogger.d(TAG, "Pesan LCD dihapus"))
+                .addOnFailureListener(e -> AppLogger.e(TAG, "Gagal hapus pesan LCD: " + e.getMessage()));
     }
 
     /** Potong teks agar tidak melebihi batas karakter LCD */
