@@ -468,10 +468,10 @@ public class HomeFragment extends Fragment {
                 @Override
                 public void onPageSelected(int position) {
                     updateDotIndicator(position);
-                    // Saat halaman grafik dibuka, muat data default (hari ini)
-                    if (position == 1 && historyManager != null) {
+                    // Saat halaman grafik dibuka, muat data sesuai filter yang aktif
+                    if (position == 1 && historyManager != null && pagerAdapter != null) {
                         historyManager.muatData(
-                            MoistureHistoryManager.FilterMode.HARI_INI,
+                            pagerAdapter.getActiveFilterMode(),
                             (labels, values) -> {
                                 if (!isAdded() || binding == null) return;
                                 requireActivity().runOnUiThread(() -> {

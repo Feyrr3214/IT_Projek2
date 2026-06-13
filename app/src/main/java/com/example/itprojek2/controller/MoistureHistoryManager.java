@@ -22,11 +22,11 @@ import androidx.annotation.NonNull;
  *   devices/{deviceId}/moisture_history/{timestamp_ms} = int (0-100)
  *
  * Mendukung filter:
- *   - HARI_INI   : data per jam untuk hari ini
- *   - KEMARIN    : data per jam untuk hari kemarin
- *   - MINGGU_INI : data rata-rata per hari untuk 7 hari terakhir
- *   - BULAN_INI  : data rata-rata per hari untuk bulan ini
- *   - BULAN_KEMARIN : data rata-rata per hari untuk bulan kemarin
+ *   - HARI_INI   : kelembaban tertinggi per jam untuk hari ini
+ *   - KEMARIN    : kelembaban tertinggi per jam untuk hari kemarin
+ *   - MINGGU_INI : kelembaban tertinggi per hari untuk 7 hari terakhir
+ *   - BULAN_INI  : kelembaban tertinggi per hari untuk bulan ini
+ *   - BULAN_KEMARIN : kelembaban tertinggi per hari untuk bulan kemarin
  */
 public class MoistureHistoryManager {
 
@@ -100,7 +100,7 @@ public class MoistureHistoryManager {
                     } catch (NumberFormatException ignored) {}
                 }
 
-                // Konversi ke label & nilai rata-rata
+                // Konversi ke label & nilai tertinggi (max) per grup
                 List<String> labels = new ArrayList<>();
                 List<Float>  values = new ArrayList<>();
 
@@ -110,9 +110,11 @@ public class MoistureHistoryManager {
                     if (dataList.isEmpty()) {
                         values.add(0f); // 0 berarti tidak ada data
                     } else {
-                        float sum = 0;
-                        for (int v : dataList) sum += v;
-                        values.add(sum / dataList.size());
+                        int maxVal = Integer.MIN_VALUE;
+                        for (int v : dataList) {
+                            if (v > maxVal) maxVal = v;
+                        }
+                        values.add((float) maxVal);
                     }
                 }
 

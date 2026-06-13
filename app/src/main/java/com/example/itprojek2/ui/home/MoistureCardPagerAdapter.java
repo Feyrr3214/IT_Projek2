@@ -121,6 +121,7 @@ public class MoistureCardPagerAdapter extends RecyclerView.Adapter<RecyclerView.
     // ── Helper: setup chip filter ─────────────────────────────────────────
 
     private TextView activeChip = null;
+    private MoistureHistoryManager.FilterMode activeFilterMode = MoistureHistoryManager.FilterMode.HARI_INI;
 
     private void setupChips(ChartViewHolder cvh) {
         // Default aktif: Hari ini
@@ -129,26 +130,31 @@ public class MoistureCardPagerAdapter extends RecyclerView.Adapter<RecyclerView.
 
         cvh.chipHariIni.setOnClickListener(v -> {
             setActiveChip(cvh, cvh.chipHariIni);
+            activeFilterMode = MoistureHistoryManager.FilterMode.HARI_INI;
             if (filterListener != null)
                 filterListener.onFilterSelected(MoistureHistoryManager.FilterMode.HARI_INI);
         });
         cvh.chipKemarin.setOnClickListener(v -> {
             setActiveChip(cvh, cvh.chipKemarin);
+            activeFilterMode = MoistureHistoryManager.FilterMode.KEMARIN;
             if (filterListener != null)
                 filterListener.onFilterSelected(MoistureHistoryManager.FilterMode.KEMARIN);
         });
         cvh.chipMingguIni.setOnClickListener(v -> {
             setActiveChip(cvh, cvh.chipMingguIni);
+            activeFilterMode = MoistureHistoryManager.FilterMode.MINGGU_INI;
             if (filterListener != null)
                 filterListener.onFilterSelected(MoistureHistoryManager.FilterMode.MINGGU_INI);
         });
         cvh.chipBulanIni.setOnClickListener(v -> {
             setActiveChip(cvh, cvh.chipBulanIni);
+            activeFilterMode = MoistureHistoryManager.FilterMode.BULAN_INI;
             if (filterListener != null)
                 filterListener.onFilterSelected(MoistureHistoryManager.FilterMode.BULAN_INI);
         });
         cvh.chipBulanKemarin.setOnClickListener(v -> {
             setActiveChip(cvh, cvh.chipBulanKemarin);
+            activeFilterMode = MoistureHistoryManager.FilterMode.BULAN_KEMARIN;
             if (filterListener != null)
                 filterListener.onFilterSelected(MoistureHistoryManager.FilterMode.BULAN_KEMARIN);
         });
@@ -177,5 +183,10 @@ public class MoistureCardPagerAdapter extends RecyclerView.Adapter<RecyclerView.
         chip.setBackgroundResource(R.drawable.bg_chip_unselected);
         chip.setTextColor(android.graphics.Color.parseColor("#CCE8E6FF")); // putih bening
         chip.setTypeface(null, android.graphics.Typeface.NORMAL);
+    }
+
+    /** Ambil filter mode yang sedang aktif */
+    public MoistureHistoryManager.FilterMode getActiveFilterMode() {
+        return activeFilterMode;
     }
 }
